@@ -24,7 +24,6 @@ from bulwark.logging_config import get_logger
 from bulwark.policy import PolicySet
 from bulwark.providers.base import ChatProvider, ProviderError
 from bulwark.providers.factory import budgeted, build_provider
-from bulwark.providers.fake import FakeProvider
 
 log = get_logger(__name__)
 
@@ -186,14 +185,15 @@ def build_runtime(
     )
     firewall = Firewall(policies, classifier=model, judge=llm_judge, pii_shield=pii_shield)
     upstream = upstream or build_provider(settings)
+    # The dashboard's "real model": the configured upstream (or OpenRouter when a key is set), always through the
+    # budget, cache and call ledger, so demo runs are counted and evaluated conversations replay from the cache.
     real: ChatProvider | None = None
-    if not isinstance(upstream, FakeProvider) and upstream.is_remote:
-        real = upstream
-    elif settings.openrouter_api_key:
+    kind = settings.upstream_provider if settings.upstream_provider != "fake" else "openrouter"
+    if settings.has_key(kind):
         try:
-            real = budgeted(build_provider(settings, kind="openrouter"), settings, tag="playground")
+            real = budgeted(build_provider(settings, kind=kind), settings, tag="dashboard")
         except ProviderError as exc:
-            log.warning("playground.real_unavailable", error=str(exc)[:200])
+            log.warning("dashboard.real_unavailable", error=str(exc)[:200])
     key = settings.audit_key.encode() if settings.audit_key else secrets.token_bytes(32)
     audit = AuditLog(key, settings.audit_max_entries, settings.audit_file)
     if settings.audit_file is not None:

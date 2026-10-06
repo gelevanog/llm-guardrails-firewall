@@ -12,8 +12,11 @@ from bulwark.classifier import DEFAULT_CLASSIFIER_MODEL
 
 ProviderKind = Literal["fake", "openrouter", "openai", "anthropic"]
 
-DEFAULT_FREE_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
-DEFAULT_FREE_FALLBACKS = ["google/gemma-4-31b-it:free", "dots-studio/dots-3-note-preview:free"]
+# Free OpenRouter models that answered with tool calls in the smoke test on 2026-10-06 (results/smoke_tools.json).
+DEFAULT_FREE_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
+DEFAULT_FREE_FALLBACKS = ["dots-studio/dots-3-note-preview:free", "google/gemma-4-31b-it:free"]
+DEFAULT_JUDGE_MODEL = "dots-studio/dots-3-note-preview:free"
+DEFAULT_JUDGE_FALLBACKS = ["nvidia/nemotron-3-ultra-550b-a55b:free"]
 DEFAULT_MODELS: dict[str, str] = {
     "fake": "fake-gullible",
     "openrouter": DEFAULT_FREE_MODEL,
@@ -63,8 +66,8 @@ class Settings(BaseSettings):
     classifier_preload: bool = True
     """Load the classifier at startup instead of on the first request."""
     judge_provider: ProviderKind = "openrouter"
-    judge_model: str = DEFAULT_FREE_MODEL
-    judge_fallback_models: Annotated[list[str], NoDecode] = Field(default_factory=lambda: list(DEFAULT_FREE_FALLBACKS))
+    judge_model: str = DEFAULT_JUDGE_MODEL
+    judge_fallback_models: Annotated[list[str], NoDecode] = Field(default_factory=lambda: list(DEFAULT_JUDGE_FALLBACKS))
 
     # ---- PII Shield integration (optional): secrets/PII check of model answers over HTTP
     pii_shield_url: str | None = None

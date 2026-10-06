@@ -38,6 +38,10 @@ _SCORE = {
 }
 
 
+def _article(risk: Risk) -> str:
+    return "an" if risk is Risk.EXTERNAL else "a"
+
+
 def parse_arguments(arguments: str | dict[str, Any] | None) -> dict[str, Any]:
     if arguments is None or arguments == "":
         return {}
@@ -130,20 +134,21 @@ def check_tool_call(
         add(
             "taint.suspicious",
             config.on_suspicious.for_risk(risk),
-            f"a {risk.value} tool after flagged untrusted content entered the conversation (from {flagged})",
+            f"{_article(risk)} {risk.value} tool after flagged untrusted content entered the conversation "
+            f"(from {flagged})",
         )
     elif level == "tainted":
         sources = ", ".join(sorted({s.source for s in taint.sources}))
         add(
             "taint.untrusted_context",
             config.on_taint.for_risk(risk),
-            f"a {risk.value} tool after untrusted content entered the conversation (from {sources})",
+            f"{_article(risk)} {risk.value} tool after untrusted content entered the conversation (from {sources})",
         )
     for path, atom in taint.untrusted_arguments(parsed):
         add(
             "taint.untrusted_argument",
             config.untrusted_arguments.for_risk(risk),
-            f"{path} = {atom!r} appears only in untrusted content, not in the user's request",
+            f"{path} {atom!r} appears only in untrusted content, not in the user's request",
             atom,
         )
 
