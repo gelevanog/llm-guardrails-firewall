@@ -1,0 +1,601 @@
+{
+ "created": "2026-10-06T05:31:47+00:00",
+ "threshold": 0.5,
+ "chosen": "protectai/deberta-v3-base-prompt-injection-v2",
+ "models": [
+  {
+   "model": "protectai/deberta-v3-base-prompt-injection-v2",
+   "license": "Apache-2.0",
+   "params_m": 184,
+   "revision": "90c9989b1a342275dd0d1a95aad283c04e075671",
+   "per_dataset": {
+    "handwritten": {
+     "n": 220,
+     "positives": 140,
+     "negatives": 80,
+     "tp": 111,
+     "fp": 17,
+     "tn": 63,
+     "fn": 29,
+     "precision": 0.8672,
+     "recall": 0.7929,
+     "f1": 0.8284,
+     "fpr": 0.2125,
+     "blocked": {
+      "recall": 0.7643,
+      "fpr": 0.2
+     },
+     "latency_ms": {
+      "mean": 115.35,
+      "p50": 107.69,
+      "p95": 174.38
+     },
+     "latency_samples": 22
+    },
+    "deepset": {
+     "n": 662,
+     "positives": 263,
+     "negatives": 399,
+     "tp": 109,
+     "fp": 4,
+     "tn": 395,
+     "fn": 154,
+     "precision": 0.9646,
+     "recall": 0.4144,
+     "f1": 0.5798,
+     "fpr": 0.01,
+     "blocked": {
+      "recall": 0.403,
+      "fpr": 0.0075
+     },
+     "latency_ms": {
+      "mean": 95.87,
+      "p50": 87.72,
+      "p95": 148.76
+     },
+     "latency_samples": 67
+    },
+    "jailbreakbench": {
+     "n": 464,
+     "positives": 364,
+     "negatives": 100,
+     "tp": 286,
+     "fp": 1,
+     "tn": 99,
+     "fn": 78,
+     "precision": 0.9965,
+     "recall": 0.7857,
+     "f1": 0.8786,
+     "fpr": 0.01,
+     "blocked": {
+      "recall": 0.7747,
+      "fpr": 0.01
+     },
+     "latency_ms": {
+      "mean": 401.59,
+      "p50": 142.19,
+      "p95": 873.46
+     },
+     "latency_samples": 46
+    },
+    "bipia": {
+     "n": 88,
+     "positives": 44,
+     "negatives": 44,
+     "tp": 26,
+     "fp": 29,
+     "tn": 15,
+     "fn": 18,
+     "precision": 0.4727,
+     "recall": 0.5909,
+     "f1": 0.5253,
+     "fpr": 0.6591,
+     "blocked": {
+      "recall": 0.5682,
+      "fpr": 0.6591
+     },
+     "latency_ms": {
+      "mean": 138.88,
+      "p50": 150.34,
+      "p95": 175.48
+     },
+     "latency_samples": 9
+    }
+   },
+   "macro_f1": 0.703,
+   "hard_negative_fpr": 0.2778,
+   "with_heuristics": {
+    "handwritten": {
+     "n": 220,
+     "positives": 140,
+     "negatives": 80,
+     "tp": 135,
+     "fp": 18,
+     "tn": 62,
+     "fn": 5,
+     "precision": 0.8824,
+     "recall": 0.9643,
+     "f1": 0.9215,
+     "fpr": 0.225,
+     "blocked": {
+      "recall": 0.8643,
+      "fpr": 0.2125
+     },
+     "latency_ms": {
+      "mean": 117.15,
+      "p50": 108.21,
+      "p95": 176.27
+     },
+     "latency_samples": 22
+    },
+    "deepset": {
+     "n": 662,
+     "positives": 263,
+     "negatives": 399,
+     "tp": 134,
+     "fp": 4,
+     "tn": 395,
+     "fn": 129,
+     "precision": 0.971,
+     "recall": 0.5095,
+     "f1": 0.6683,
+     "fpr": 0.01,
+     "blocked": {
+      "recall": 0.4297,
+      "fpr": 0.0075
+     },
+     "latency_ms": {
+      "mean": 96.8,
+      "p50": 88.17,
+      "p95": 151.59
+     },
+     "latency_samples": 67
+    },
+    "jailbreakbench": {
+     "n": 464,
+     "positives": 364,
+     "negatives": 100,
+     "tp": 286,
+     "fp": 1,
+     "tn": 99,
+     "fn": 78,
+     "precision": 0.9965,
+     "recall": 0.7857,
+     "f1": 0.8786,
+     "fpr": 0.01,
+     "blocked": {
+      "recall": 0.7747,
+      "fpr": 0.01
+     },
+     "latency_ms": {
+      "mean": 409.96,
+      "p50": 145.12,
+      "p95": 891.11
+     },
+     "latency_samples": 46
+    },
+    "bipia": {
+     "n": 88,
+     "positives": 44,
+     "negatives": 44,
+     "tp": 26,
+     "fp": 29,
+     "tn": 15,
+     "fn": 18,
+     "precision": 0.4727,
+     "recall": 0.5909,
+     "f1": 0.5253,
+     "fpr": 0.6591,
+     "blocked": {
+      "recall": 0.5682,
+      "fpr": 0.6591
+     },
+     "latency_ms": {
+      "mean": 142.65,
+      "p50": 155.43,
+      "p95": 181.67
+     },
+     "latency_samples": 9
+    }
+   },
+   "ms_per_text": 199.2,
+   "ms_p95": 836.37
+  },
+  {
+   "model": "PreambleAI/prompt-injection-defense",
+   "license": "Apache-2.0",
+   "params_m": 150,
+   "revision": "cd7bfdb8d76278bbad4a3a0f637a4cba56ef4322",
+   "per_dataset": {
+    "handwritten": {
+     "n": 220,
+     "positives": 140,
+     "negatives": 80,
+     "tp": 125,
+     "fp": 43,
+     "tn": 37,
+     "fn": 15,
+     "precision": 0.744,
+     "recall": 0.8929,
+     "f1": 0.8117,
+     "fpr": 0.5375,
+     "blocked": {
+      "recall": 0.8643,
+      "fpr": 0.4875
+     },
+     "latency_ms": {
+      "mean": 63.64,
+      "p50": 52.19,
+      "p95": 123.13
+     },
+     "latency_samples": 22
+    },
+    "deepset": {
+     "n": 662,
+     "positives": 263,
+     "negatives": 399,
+     "tp": 126,
+     "fp": 31,
+     "tn": 368,
+     "fn": 137,
+     "precision": 0.8025,
+     "recall": 0.4791,
+     "f1": 0.6,
+     "fpr": 0.0777,
+     "blocked": {
+      "recall": 0.4297,
+      "fpr": 0.0501
+     },
+     "latency_ms": {
+      "mean": 52.06,
+      "p50": 42.2,
+      "p95": 113.38
+     },
+     "latency_samples": 67
+    },
+    "jailbreakbench": {
+     "n": 464,
+     "positives": 364,
+     "negatives": 100,
+     "tp": 339,
+     "fp": 20,
+     "tn": 80,
+     "fn": 25,
+     "precision": 0.9443,
+     "recall": 0.9313,
+     "f1": 0.9378,
+     "fpr": 0.2,
+     "blocked": {
+      "recall": 0.9066,
+      "fpr": 0.17
+     },
+     "latency_ms": {
+      "mean": 340.46,
+      "p50": 92.59,
+      "p95": 731.93
+     },
+     "latency_samples": 46
+    },
+    "bipia": {
+     "n": 88,
+     "positives": 44,
+     "negatives": 44,
+     "tp": 40,
+     "fp": 44,
+     "tn": 0,
+     "fn": 4,
+     "precision": 0.4762,
+     "recall": 0.9091,
+     "f1": 0.625,
+     "fpr": 1.0,
+     "blocked": {
+      "recall": 0.9091,
+      "fpr": 0.9773
+     },
+     "latency_ms": {
+      "mean": 118.21,
+      "p50": 138.54,
+      "p95": 193.16
+     },
+     "latency_samples": 9
+    }
+   },
+   "macro_f1": 0.7436,
+   "hard_negative_fpr": 0.6481,
+   "with_heuristics": {
+    "handwritten": {
+     "n": 220,
+     "positives": 140,
+     "negatives": 80,
+     "tp": 139,
+     "fp": 44,
+     "tn": 36,
+     "fn": 1,
+     "precision": 0.7596,
+     "recall": 0.9929,
+     "f1": 0.8607,
+     "fpr": 0.55,
+     "blocked": {
+      "recall": 0.9643,
+      "fpr": 0.5
+     },
+     "latency_ms": {
+      "mean": 65.45,
+      "p50": 54.12,
+      "p95": 124.17
+     },
+     "latency_samples": 22
+    },
+    "deepset": {
+     "n": 662,
+     "positives": 263,
+     "negatives": 399,
+     "tp": 151,
+     "fp": 31,
+     "tn": 368,
+     "fn": 112,
+     "precision": 0.8297,
+     "recall": 0.5741,
+     "f1": 0.6787,
+     "fpr": 0.0777,
+     "blocked": {
+      "recall": 0.4677,
+      "fpr": 0.0501
+     },
+     "latency_ms": {
+      "mean": 52.99,
+      "p50": 42.71,
+      "p95": 118.02
+     },
+     "latency_samples": 67
+    },
+    "jailbreakbench": {
+     "n": 464,
+     "positives": 364,
+     "negatives": 100,
+     "tp": 339,
+     "fp": 20,
+     "tn": 80,
+     "fn": 25,
+     "precision": 0.9443,
+     "recall": 0.9313,
+     "f1": 0.9378,
+     "fpr": 0.2,
+     "blocked": {
+      "recall": 0.9066,
+      "fpr": 0.17
+     },
+     "latency_ms": {
+      "mean": 348.83,
+      "p50": 96.28,
+      "p95": 749.9
+     },
+     "latency_samples": 46
+    },
+    "bipia": {
+     "n": 88,
+     "positives": 44,
+     "negatives": 44,
+     "tp": 40,
+     "fp": 44,
+     "tn": 0,
+     "fn": 4,
+     "precision": 0.4762,
+     "recall": 0.9091,
+     "f1": 0.625,
+     "fpr": 1.0,
+     "blocked": {
+      "recall": 0.9091,
+      "fpr": 0.9773
+     },
+     "latency_ms": {
+      "mean": 121.99,
+      "p50": 143.45,
+      "p95": 199.36
+     },
+     "latency_samples": 9
+    }
+   },
+   "ms_per_text": 150.1,
+   "ms_p95": 724.06
+  },
+  {
+   "model": "madhurjindal/Jailbreak-Detector",
+   "license": "MIT",
+   "params_m": 66,
+   "revision": "93883e180f4d6585a0afae703095ba4a9ebce888",
+   "per_dataset": {
+    "handwritten": {
+     "n": 220,
+     "positives": 140,
+     "negatives": 80,
+     "tp": 42,
+     "fp": 2,
+     "tn": 78,
+     "fn": 98,
+     "precision": 0.9545,
+     "recall": 0.3,
+     "f1": 0.4565,
+     "fpr": 0.025,
+     "blocked": {
+      "recall": 0.1571,
+      "fpr": 0.0125
+     },
+     "latency_ms": {
+      "mean": 25.55,
+      "p50": 19.72,
+      "p95": 54.12
+     },
+     "latency_samples": 22
+    },
+    "deepset": {
+     "n": 662,
+     "positives": 263,
+     "negatives": 399,
+     "tp": 40,
+     "fp": 5,
+     "tn": 394,
+     "fn": 223,
+     "precision": 0.8889,
+     "recall": 0.1521,
+     "f1": 0.2597,
+     "fpr": 0.0125,
+     "blocked": {
+      "recall": 0.1027,
+      "fpr": 0.0025
+     },
+     "latency_ms": {
+      "mean": 20.86,
+      "p50": 16.21,
+      "p95": 51.27
+     },
+     "latency_samples": 67
+    },
+    "jailbreakbench": {
+     "n": 464,
+     "positives": 364,
+     "negatives": 100,
+     "tp": 360,
+     "fp": 2,
+     "tn": 98,
+     "fn": 4,
+     "precision": 0.9945,
+     "recall": 0.989,
+     "f1": 0.9917,
+     "fpr": 0.02,
+     "blocked": {
+      "recall": 0.9725,
+      "fpr": 0.0
+     },
+     "latency_ms": {
+      "mean": 125.82,
+      "p50": 36.12,
+      "p95": 268.78
+     },
+     "latency_samples": 46
+    },
+    "bipia": {
+     "n": 88,
+     "positives": 44,
+     "negatives": 44,
+     "tp": 4,
+     "fp": 2,
+     "tn": 42,
+     "fn": 40,
+     "precision": 0.6667,
+     "recall": 0.0909,
+     "f1": 0.16,
+     "fpr": 0.0455,
+     "blocked": {
+      "recall": 0.0227,
+      "fpr": 0.0
+     },
+     "latency_ms": {
+      "mean": 44.76,
+      "p50": 53.13,
+      "p95": 66.82
+     },
+     "latency_samples": 9
+    }
+   },
+   "macro_f1": 0.467,
+   "hard_negative_fpr": 0.037,
+   "with_heuristics": {
+    "handwritten": {
+     "n": 220,
+     "positives": 140,
+     "negatives": 80,
+     "tp": 123,
+     "fp": 3,
+     "tn": 77,
+     "fn": 17,
+     "precision": 0.9762,
+     "recall": 0.8786,
+     "f1": 0.9248,
+     "fpr": 0.0375,
+     "blocked": {
+      "recall": 0.6,
+      "fpr": 0.025
+     },
+     "latency_ms": {
+      "mean": 27.35,
+      "p50": 21.51,
+      "p95": 55.17
+     },
+     "latency_samples": 22
+    },
+    "deepset": {
+     "n": 662,
+     "positives": 263,
+     "negatives": 399,
+     "tp": 104,
+     "fp": 5,
+     "tn": 394,
+     "fn": 159,
+     "precision": 0.9541,
+     "recall": 0.3954,
+     "f1": 0.5591,
+     "fpr": 0.0125,
+     "blocked": {
+      "recall": 0.2205,
+      "fpr": 0.0025
+     },
+     "latency_ms": {
+      "mean": 21.8,
+      "p50": 16.46,
+      "p95": 54.1
+     },
+     "latency_samples": 67
+    },
+    "jailbreakbench": {
+     "n": 464,
+     "positives": 364,
+     "negatives": 100,
+     "tp": 360,
+     "fp": 2,
+     "tn": 98,
+     "fn": 4,
+     "precision": 0.9945,
+     "recall": 0.989,
+     "f1": 0.9917,
+     "fpr": 0.02,
+     "blocked": {
+      "recall": 0.9725,
+      "fpr": 0.0
+     },
+     "latency_ms": {
+      "mean": 134.2,
+      "p50": 39.81,
+      "p95": 286.68
+     },
+     "latency_samples": 46
+    },
+    "bipia": {
+     "n": 88,
+     "positives": 44,
+     "negatives": 44,
+     "tp": 4,
+     "fp": 2,
+     "tn": 42,
+     "fn": 40,
+     "precision": 0.6667,
+     "recall": 0.0909,
+     "f1": 0.16,
+     "fpr": 0.0455,
+     "blocked": {
+      "recall": 0.0227,
+      "fpr": 0.0
+     },
+     "latency_ms": {
+      "mean": 48.54,
+      "p50": 57.75,
+      "p95": 73.02
+     },
+     "latency_samples": 9
+    }
+   },
+   "ms_per_text": 56.6,
+   "ms_p95": 257.77
+  }
+ ]
+}

@@ -1,0 +1,35 @@
+[
+ {
+  "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "ok": true,
+  "served": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "answer": "",
+  "tool_calls": [
+   "lookup_order{\"order_id\":\"A-1004\"}"
+  ]
+ },
+ {
+  "model": "thinkingmachines/inkling-small:free",
+  "ok": false,
+  "error": "upstream 403: thinkingmachines/inkling-small:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on http"
+ },
+ {
+  "model": "google/gemma-4-26b-a4b-it:free",
+  "ok": false,
+  "error": "rate limited: google/gemma-4-26b-a4b-it:free is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate your rate limits: htt"
+ },
+ {
+  "model": "liquid/lfm-2.5-2.6b:free",
+  "ok": true,
+  "served": "liquid/lfm-2.5-2.6b:free",
+  "answer": "",
+  "tool_calls": [
+   "lookup_order{\"order_id\": \"A-1004\"}"
+  ]
+ },
+ {
+  "model": "google/gemma-4-26b-a4b-it:free",
+  "ok": false,
+  "error": "rate limited: google/gemma-4-26b-a4b-it:free is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate your rate limits: htt"
+ }
+]
