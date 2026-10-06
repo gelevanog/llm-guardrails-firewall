@@ -1,0 +1,56 @@
+{% from "_macros.html" import segments, action, guard_card %}
+{% set r = result %}{% set d = r.decision %}
+<div class="verdict {{ d.action.value }}">
+  <span class="big">{% if d.action.value == 'block' %}Blocked{% elif d.action.value == 'require_approval' %}Held for human approval{% elif d.action.value == 'sanitize' %}Sanitized{% elif d.action.value == 'flag' %}Flagged{% else %}Allowed{% endif %}</span>
+  {{ action(d.action.value) }}
+  <span class="small muted">stage {{ d.stage | replace('_', ' ') }} · policy <code>{{ d.policy }}</code> · {{ '%.1f' % d.latency_ms }} ms{% if not d.enforced %} · monitor mode: recorded, not enforced{% endif %}{% if r.taint %} · session taint: <strong>{{ r.taint }}</strong>{% endif %}</span>
+</div>
+<div class="guard-grid">{% for g in d.results %}{{ guard_card(g) }}{% endfor %}</div>
+{% if d.approval %}
+<div class="panel" style="margin-top:1rem">
+  <h3>Approval request <code>{{ d.approval.id }}</code></h3>
+  <p class="small">The agent pauses; a person sees the call and the reasons, then approves or denies via <code>POST /v1/approvals/{{ d.approval.id }}</code>.</p>
+  <pre>{{ d.approval.tool }}({{ d.approval.arguments | tojson }})</pre>
+  <ul class="small">{% for reason in d.approval.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+<div class="two-col" style="margin-top:1rem">
+  <div class="panel">
+    <div class="panel-head"><h3><span class="step">1</span>{{ 'Arguments' if r.stage == 'tool_call' else ('Visible text, with what fired' if r.stage == 'untrusted' else 'Text, with what fired') }}</h3><span class="small muted">hover a mark for rule · score · view</span></div>
+    <div class="textbox">{{ segments(r.segments) }}</div>
+    {% if r.report and r.report.hidden %}
+    <h3 style="margin-top:0.8rem">Hidden from a human reader</h3>
+    <table class="findings"><tbody>{% for h in r.report.hidden %}<tr><td class="nowrap small muted">{{ h.reason }}</td><td><code>{{ h.text }}</code></td><td>{% if h.suspicious %}<span class="badge badge-block">instruction</span>{% endif %}</td></tr>{% endfor %}</tbody></table>
+    {% endif %}
+    {% if r.decoded %}
+    <h3 style="margin-top:0.8rem">Decoded payloads</h3>
+    <table class="findings"><tbody>{% for v in r.decoded %}<tr><td class="nowrap small muted">{{ v.kind }}</td><td><code>{{ v.text }}</code></td></tr>{% endfor %}</tbody></table>
+    {% endif %}
+  </div>
+  <div class="panel">
+    {% if r.stage == 'untrusted' %}
+    <div class="panel-head"><h3><span class="step">2</span>What the model receives</h3><span class="small muted">quarantined + spotlighted</span></div>
+    <div class="textbox mono">{{ r.model_text }}</div>
+    {% elif r.stage == 'output' %}
+    <div class="panel-head"><h3><span class="step">2</span>What the user sees</h3><span class="small muted">after the output guards</span></div>
+    <div class="textbox">{{ ('[Bulwark blocked this answer: ' ~ d.explain() ~ ']') if d.blocked else r.model_text }}</div>
+    {% elif r.stage == 'input' and r.provider != 'none' %}
+    <div class="panel-head"><h3><span class="step">2</span>Model answer</h3><span class="small muted">{{ r.provider }}{% if r.model %} · {{ r.model }}{% endif %}{% if r.llm_ms %} · {{ '%.0f' % r.llm_ms }} ms{% endif %}</span></div>
+    {% if r.error %}<div class="textbox"><span class="diff">{{ r.error }}</span></div>
+    {% else %}<div class="small muted">As received</div><div class="textbox">{{ r.raw_answer }}</div>
+    <div class="small muted" style="margin-top:0.5rem">Shown to the user{% if r.output_decision and r.output_decision.triggered %} ({{ r.output_decision.explain() }}){% endif %}</div><div class="textbox">{{ r.answer }}</div>{% endif %}
+    {% elif r.stage == 'input' and d.blocked %}
+    <div class="panel-head"><h3><span class="step">2</span>Nothing reached the model</h3></div>
+    <p class="small muted">The request was refused before any upstream call. The client gets an OpenAI-style 400 error (<code>bulwark_policy_violation</code>) or, with <code>block_response: refusal</code>, a polite refusal.</p>
+    {% else %}
+    <div class="panel-head"><h3><span class="step">2</span>Findings</h3></div>
+    {% endif %}
+    {% set findings = d.results | map(attribute='findings') | sum(start=[]) %}
+    {% if findings %}
+    <table class="findings" style="margin-top:0.6rem">
+      <thead><tr><th>Rule</th><th>Layer</th><th class="num">Score</th><th>Where</th></tr></thead>
+      <tbody>{% for f in findings | sort(attribute='score', reverse=true) %}<tr title="{{ f.message }}"><td><code>{{ f.rule }}</code><div class="small muted">{{ f.message }}</div></td><td class="small">{{ f.layer }}</td><td class="num">{{ '%.2f' % f.score }}</td><td class="small muted">{{ f.view }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>

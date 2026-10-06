@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pct, f2 %}
+{% block title %}Bulwark evaluation{% endblock %}
+{% block content %}
+{% macro bar(v, cls='s1', fmt='f') %}<div class="cell-bar"><div class="track"><div class="fill {{ cls }}" style="width: {{ ((v or 0) * 100)|round(1) }}%"></div></div><span class="value">{% if fmt == 'pct' %}{{ pct(v) }}{% else %}{{ f2(v) }}{% endif %}</span></div>{% endmacro %}
+<section class="hero">
+  <div>
+    <h1>Evaluation</h1>
+    <p class="muted">Detection by layer on public benchmarks and a hand-written set (with hard negatives), and an email agent under attack with a real free model, without and with Bulwark.</p>
+  </div>
+  <div class="chips">
+    {% if detection %}<span class="chip">detection run {{ detection.created[:10] }}</span>{% endif %}
+    {% if agent %}<span class="chip">agent run {{ agent.created[:10] }}</span>{% endif %}
+    {% if calls %}<span class="chip {{ 'chip-good' if calls.all_model_ids_free else 'chip-bad' }}">{{ calls.total_requests }} real API calls{{ ', all :free models' if calls.all_model_ids_free }}</span>{% endif %}
+  </div>
+</section>
+
+{% if not detection and not agent %}
+<p class="note" style="margin-top:1.5rem">No results in <code>{{ results_dir }}</code> yet. Run <code>make eval-offline</code> (no API calls), then reload.</p>
+{% endif %}
+
+{% if agent %}
+{% set off = agent.summary[0] %}{% set on = agent.summary[1] %}
+<div class="tiles">
+  <div class="tile"><div class="tile-label">Attacks that succeeded on the agent</div><div class="tile-value num">{{ off.attacks_succeeded }} → {{ on.attacks_succeeded }}</div><div class="tile-sub">of {{ on.attack_runs }} attack scenarios · without → with Bulwark</div></div>
+  <div class="tile"><div class="tile-label">Benign tasks completed</div><div class="tile-value num">{{ off.benign_completed }} → {{ on.benign_completed }}</div><div class="tile-sub">of {{ on.benign_runs }} · {{ on.benign_runs_with_approval }} needed a human approval</div></div>
+  <div class="tile"><div class="tile-label">Guard time per agent run</div><div class="tile-value num">{{ '%.0f' % on.guard_ms_per_run }} ms</div><div class="tile-sub">vs {{ '%.1f' % (on.model_ms_per_run / 1000) }} s in model calls</div></div>
+  {% if detection %}{% set hn = detection.hard_negatives %}
+  <div class="tile"><div class="tile-label">Hard negatives flagged</div><div class="tile-value num">{{ pct(hn['heuristics'].fpr, 0) }}</div><div class="tile-sub">heuristics · {{ pct(hn['heuristics+classifier'].fpr, 0) }} with the classifier (max)</div></div>
+  {% endif %}
+</div>
+
+<h2>Agent under attack: <code>{{ agent.model }}</code></h2>
+<div class="panel">
+  <p class="small muted" style="margin-top:0">{{ agent.scenarios }} scenarios, each run without and with Bulwark (policy <code>{{ agent.policy }}</code>). An attack succeeds when the attacker's action is executed or the attacker's link reaches the answer. A simulated reviewer approves exactly the actions the task asked for.</p>
+  <table>
+    <thead><tr><th></th><th>Attack success</th><th>Benign tasks completed</th><th class="num">Approvals</th><th class="num">Blocked calls</th><th class="num">Errors</th><th class="num">Time / run</th></tr></thead>
+    <tbody>{% for row in agent.summary %}
+      <tr><td><strong>{{ row.mode }}</strong></td><td>{{ bar(row.asr, 's4', 'pct') }}<div class="small muted">{{ row.attacks_succeeded }} / {{ row.attack_runs }}</div></td>
+        <td>{{ bar(row.benign_completion, 's3', 'pct') }}<div class="small muted">{{ row.benign_completed }} / {{ row.benign_runs }}</div></td>
+        <td class="num">{{ row.approvals_requested }}</td><td class="num">{{ row.blocked_calls }}</td><td class="num">{{ row.errors }}</td><td class="num">{{ '%.1f' % (row.total_ms_per_run / 1000) }} s</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% set pairs = {} %}{% for r in agent.runs %}{% set _ = pairs.setdefault(r.scenario, {}).update({('on' if r.protected else 'off'): r}) %}{% endfor %}
+  <table style="margin-top:0.8rem">
+    <thead><tr><th>Scenario</th><th>Without Bulwark</th><th>With Bulwark</th><th>What Bulwark did</th></tr></thead>
+    <tbody>{% for sid, p in pairs.items() %}
+      <tr><td><code>{{ sid }}</code><div class="small muted">{{ (p.off or p.on).kind }}</div></td>
+      {% for key in ['off', 'on'] %}{% set r = p[key] %}
+        <td class="small">{% if r %}{% if r.attack_success is not none %}<span class="badge {{ 'badge-block' if r.attack_success else 'badge-allow' }}">{{ 'attack succeeded' if r.attack_success else 'attack failed' }}</span>{% endif %}
+          <span class="badge {{ 'badge-allow' if r.task_completed else 'badge-require_approval' }}">{{ 'task done' if r.task_completed else 'task not done' }}</span>{% if r.error %} <span class="badge badge-block">error</span>{% endif %}{% endif %}</td>
+      {% endfor %}
+        <td class="small muted">{% if p.on %}{{ p.on.quarantined }} quarantined · {{ p.on.approvals }} approval(s) · {{ p.on.blocked_calls }} blocked{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if detection %}
+{% set labels = detection.labels %}
+<h2>Detection by layer</h2>
+<div class="panel">
+  <p class="small muted" style="margin-top:0">Flagged = combined score ≥ {{ detection.threshold }} (input is flagged, untrusted content is quarantined); FPR = share of benign samples flagged. Classifier: <code>{{ detection.classifier_model }}</code>. Latency per text on CPU (machine shared with other jobs).</p>
+  {% set datasets = [] %}{% for row in detection.summary %}{% if row.dataset not in datasets %}{% set _ = datasets.append(row.dataset) %}{% endif %}{% endfor %}
+  <table>
+    <thead><tr><th>Dataset</th><th>Layers</th><th>Recall</th><th>False-positive rate</th><th class="num">Precision</th><th class="num">F1</th><th class="num">Latency mean / p95</th></tr></thead>
+    <tbody>
+    {% for ds in datasets %}{% for row in detection.summary if row.dataset == ds %}
+      <tr><td>{% if loop.first %}<strong>{{ ds }}</strong><div class="small muted">{{ detection.datasets[ds].positives }} attacks · {{ detection.datasets[ds].negatives }} benign</div>{% endif %}</td>
+        <td class="small">{{ labels[row.config] }}</td>
+        <td>{{ bar(row.recall, 's1') }}</td><td>{{ bar(row.fpr, 's4', 'pct') }}</td>
+        <td class="num">{{ f2(row.precision) }}</td><td class="num hl">{{ f2(row.f1) }}</td>
+        <td class="num small nowrap">{{ '%.1f' % row.latency_ms.mean }} / {{ '%.1f' % row.latency_ms.p95 }} ms</td></tr>
+    {% endfor %}{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if detection.judge %}{% set judge = detection.judge %}
+<h2>Adding the LLM judge for borderline scores</h2>
+<div class="panel">
+  <p class="small muted" style="margin-top:0">Judge <code>{{ judge.model }}</code> on a deterministic subset; it is only called when the combined score is in [{{ judge.band[0] }}, {{ judge.band[1] }}): {{ judge.calls }} calls, {{ judge.errors }} failed (counted as detections, fail-closed).</p>
+  <table>
+    <thead><tr><th>Dataset (subset)</th><th>Layers</th><th class="num">Recall</th><th class="num">FPR</th><th class="num">Precision</th><th class="num">F1</th><th class="num">Latency mean / p95</th></tr></thead>
+    <tbody>{% for row in judge.summary %}
+      <tr><td>{{ row.dataset }} <span class="small muted">({{ row.n }})</span></td><td class="small">{{ labels[row.config] }}</td><td class="num">{{ f2(row.recall) }}</td><td class="num">{{ pct(row.fpr) }}</td><td class="num">{{ f2(row.precision) }}</td><td class="num hl">{{ f2(row.f1) }}</td>
+        <td class="num small nowrap">{% if row.latency_ms.mean >= 1000 %}{{ '%.1f' % (row.latency_ms.mean / 1000) }} s{% else %}{{ '%.0f' % row.latency_ms.mean }} ms{% endif %} / {% if row.latency_ms.p95 >= 1000 %}{{ '%.1f' % (row.latency_ms.p95 / 1000) }} s{% else %}{{ '%.0f' % row.latency_ms.p95 }} ms{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
+
+<h2>Hand-written set by category</h2>
+<div class="panel">
+  {% set cats = detection.by_category.get('handwritten', {}) %}
+  {% if cats %}
+  <div class="legend"><span><span class="swatch s1"></span>Heuristics</span><span><span class="swatch s2"></span>Classifier alone</span><span><span class="swatch s3"></span>Heuristics + classifier</span><span>attacks: share flagged (recall) · benign: share flagged (false positives)</span></div>
+  <table>
+    <thead><tr><th>Category</th><th class="num">Items</th><th>Heuristics</th><th>Classifier</th><th>Both</th></tr></thead>
+    <tbody>{% for name, row in cats['heuristics'].items() %}
+      <tr><td>{{ name | replace('_', ' ') }} <span class="small muted">{{ 'attacks' if row.label else 'benign' }}</span></td><td class="num">{{ row.n }}</td>
+        <td>{{ bar(row.rate, 's1' if row.label else 's4', 'pct') }}</td><td>{{ bar(cats['classifier'][name].rate, 's2' if row.label else 's4', 'pct') }}</td><td>{{ bar(cats['heuristics+classifier'][name].rate, 's3' if row.label else 's4', 'pct') }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if classifiers %}
+<h2>Choosing the classifier</h2>
+<div class="panel">
+  <table>
+    <thead><tr><th>Model</th><th class="num">Params</th>{% for ds in classifiers.models[0].per_dataset %}<th class="num">{{ ds }} F1 / FPR</th>{% endfor %}<th class="num">Hard-negative FPR</th><th class="num">ms / text</th></tr></thead>
+    <tbody>{% for row in classifiers.models %}
+      <tr><td><code>{{ row.model }}</code>{% if row.model == classifiers.chosen %} <span class="chip chip-good">default</span>{% endif %}<div class="small muted">{{ row.license }}</div></td><td class="num">{{ row.params_m }}M</td>
+        {% for ds, r in row.per_dataset.items() %}<td class="num">{{ f2(r.f1) }} <span class="small muted">/ {{ pct(r.fpr, 0) }}</span></td>{% endfor %}
+        <td class="num">{{ pct(row.hard_negative_fpr, 0) }}</td><td class="num">{{ '%.0f' % row.ms_per_text }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

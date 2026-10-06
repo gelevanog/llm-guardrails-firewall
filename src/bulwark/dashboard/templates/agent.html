@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Bulwark agent demo{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>Agent demo: an email assistant under attack</h1>
+    <p class="muted">The same task runs twice: without Bulwark and with it. Some emails and knowledge-base articles in the inbox carry hidden instructions.</p>
+  </div>
+  <div class="chips"><span class="chip">tools: search_inbox · read_email · search_kb · lookup_order · create_ticket · send_email</span></div>
+</section>
+<div class="panel" style="margin-top:1rem">
+  <form class="play" method="post" action="/agent/run" hx-post="/agent/run" hx-target="#result" hx-swap="innerHTML" hx-indicator="#run">
+    <div class="controls">
+      <label>Scenario
+        <select name="scenario_id">
+          <optgroup label="Attacks">{% for s in scenarios if s.kind == 'attack' %}<option value="{{ s.id }}" {{ 'selected' if s.id == selected }}>{{ s.id }}: {{ s.task[:70] }}</option>{% endfor %}</optgroup>
+          <optgroup label="Benign tasks">{% for s in scenarios if s.kind == 'benign' %}<option value="{{ s.id }}" {{ 'selected' if s.id == selected }}>{{ s.id }}: {{ s.task[:70] }}</option>{% endfor %}</optgroup>
+        </select>
+      </label>
+      <label>Model
+        <select name="model">
+          <option value="fake" {{ 'selected' if model == 'fake' }}>Fake gullible model (offline, obeys every injection)</option>
+          <option value="real" {{ 'selected' if model == 'real' }} {{ 'disabled' if not real_ready }}>Real model{% if real_label %} ({{ real_label }}){% else %} (set OPENROUTER_API_KEY){% endif %}</option>
+        </select>
+      </label>
+      <label>When Bulwark asks for approval
+        <select name="reviewer">
+          <option value="pause" {{ 'selected' if reviewer == 'pause' }}>Pause (leave it pending)</option>
+          <option value="simulated" {{ 'selected' if reviewer == 'simulated' }}>Simulated reviewer (approves only what the task asked)</option>
+        </select>
+      </label>
+    </div>
+    <button id="run" class="btn" type="submit">Run without and with Bulwark</button>
+  </form>
+</div>
+<div id="result">{% if comparison %}{% include "partials/agent_result.html" %}{% endif %}</div>
+{% endblock %}

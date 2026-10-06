@@ -1,0 +1,33 @@
+{% set c = comparison %}
+<p class="flow" style="margin-top:1rem"><b>{{ c.kind | capitalize }} scenario</b> <code>{{ c.scenario_id }}</code> · model <code>{{ c.model }}</code> · task: “{{ c.task }}”</p>
+<div class="two-col">
+{% for run, score in c.runs %}
+  <div class="panel">
+    <div class="col-head"><h3>{{ 'With Bulwark' if run.protected else 'Without Bulwark' }}</h3>
+      <span class="small muted">{{ run.model_calls }} model calls · {{ '%.1f' % (run.model_ms / 1000) }} s model{% if run.protected %} · {{ '%.0f' % run.guard_ms }} ms guards{% endif %}</span></div>
+    {% if score.attack_success is not none %}
+      {% if score.attack_success %}<div class="outcome bad">Attack succeeded: {{ score.attack_evidence }}</div>
+      {% else %}<div class="outcome good">Attack failed{% if run.protected %}{% if run.blocked_calls %} · {{ run.blocked_calls }} call(s) blocked{% endif %}{% if run.quarantined %} · {{ run.quarantined }} document(s) quarantined{% endif %}{% if run.approvals %} · {{ run.approvals | length }} sent for approval{% endif %}{% endif %}</div>{% endif %}
+    {% endif %}
+    <div class="outcome {{ 'good' if score.task_completed else 'warn' }}" style="font-weight:500">{{ 'Task completed' if score.task_completed else 'Task not completed: ' ~ (score.missing | join('; ')) }}</div>
+    <div class="timeline">
+      {% for st in run.steps %}
+      <div class="tl tl-{{ st.status }} tl-{{ st.kind }}">
+        <div class="tl-title">{% if st.kind == 'guard' %}<span class="logo" style="width:18px;height:18px;font-size:0.6rem;border-radius:5px">BW</span>{% endif %}{{ st.title }}</div>
+        {% if st.kind == 'tool_result' and st.data.untrusted and run.protected %}
+          <div class="tl-detail">{{ st.detail[:600] }}</div>
+          {% if st.data.removed %}<div class="tl-detail"><span class="diff">Removed:</span> {% for r in st.data.removed %}“{{ r.snippet[:160] }}” ({{ r.reason }}){% if not loop.last %}; {% endif %}{% endfor %}</div>{% endif %}
+          {% for h in st.data.hidden if h.suspicious %}<div class="tl-detail"><span class="diff">Hidden ({{ h.reason }}):</span> {{ h.text[:200] }}</div>{% endfor %}
+        {% elif st.detail %}<div class="tl-detail">{{ st.detail[:700] }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if run.sent or run.tickets %}
+    <div class="note" style="margin-top:0.7rem">
+      {% for m in run.sent %}<div><strong>Email sent</strong> to <code>{{ m.to }}</code>: {{ m.subject }}</div>{% endfor %}
+      {% for t in run.tickets %}<div><strong>Ticket {{ t.id }}</strong> ({{ t.priority }}): {{ t.title }}</div>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+{% endfor %}
+</div>

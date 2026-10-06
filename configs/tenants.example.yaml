@@ -1,0 +1,11 @@
+# Gateway API keys -> tenants -> policies. Keys are stored as SHA-256 hashes, never in clear text:
+#   python -c "import hashlib,sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest())" 'the-key'
+# With this file set (BULWARK_TENANTS_FILE), every request needs `Authorization: Bearer <key>`.
+tenants:
+  - name: support-site
+    api_key_sha256: 4c3a6f0b7f6c8d9b0f1d0b0e2b8e0d1a9a5c4d3b2e1f0a9b8c7d6e5f4a3b2c1d   # demo hash, not a real key
+    policy: support-bot
+  - name: inbox-agent
+    api_key_sha256: 9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c   # demo hash, not a real key
+    policy: email-agent
+    allowed_policies: [strict, monitor]

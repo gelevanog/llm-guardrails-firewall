@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Bulwark{% endblock %}</title>
+  <style>{% include "_style.css" %}</style>
+  <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="logo">BW</span> Bulwark</a>
+    <nav>
+      <a href="/" class="{{ 'active' if page == 'playground' }}">Playground</a>
+      <a href="/agent" class="{{ 'active' if page == 'agent' }}">Agent demo</a>
+      <a href="/results" class="{{ 'active' if page == 'results' }}">Evaluation</a>
+      <a href="/audit-log" class="{{ 'active' if page == 'audit' }}">Audit log</a>
+      <a href="/docs">API</a>
+    </nav>
+  </header>
+  <main class="container">
+    {% block content %}{% endblock %}
+    <footer>Bulwark: an LLM firewall against prompt injection, jailbreaks and data exfiltration. Upstream <code>{{ upstream }}</code> · classifier {{ classifier_status }}.</footer>
+  </main>
+</body>
+</html>

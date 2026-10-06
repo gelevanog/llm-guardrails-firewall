@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Bulwark playground{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>Playground</h1>
+    <p class="muted">Pick an attack (or a benign look-alike), choose where it enters the system, and see which guard fires, with what score and why.</p>
+  </div>
+  <div class="chips">
+    <span class="chip {{ 'chip-good' if classifier_ready else 'chip-warn' }}">classifier: {{ 'on' if classifier_ready else 'off' }}</span>
+    <span class="chip {{ 'chip-good' if judge_ready else '' }}">LLM judge: {{ 'available' if judge_ready else 'not configured' }}</span>
+    <span class="chip">upstream: {{ upstream }}</span>
+  </div>
+</section>
+<div class="panel" style="margin-top:1rem">
+  <form class="play" method="post" action="/playground" hx-post="/playground" hx-target="#result" hx-swap="innerHTML" hx-indicator="#run">
+    <div class="controls">
+      <label>Example
+        <select onchange="if (this.value) location.href = '/?example=' + this.value">
+          {% for group, items in groups.items() %}<optgroup label="{{ group }}">{% for ex in items %}<option value="{{ ex.id }}" {{ 'selected' if ex.id == chosen.id }}>{{ ex.label }}</option>{% endfor %}</optgroup>{% endfor %}
+        </select>
+      </label>
+      <label>Where it enters
+        <select name="stage" id="stage" onchange="showStage(this.value)">
+          {% for value, label in [('input', 'User message (input)'), ('untrusted', 'Email / document / tool result (untrusted)'), ('output', "Model's answer (output)"), ('tool_call', 'Agent tool call')] %}
+          <option value="{{ value }}" {{ 'selected' if chosen.stage == value }}>{{ label }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Policy
+        <select name="policy">{% for p in policies %}<option value="{{ p }}" {{ 'selected' if p == policy }}>{{ p }}</option>{% endfor %}</select>
+      </label>
+      <label class="stage-input">Then call a model
+        <select name="provider">
+          <option value="none" {{ 'selected' if provider == 'none' }}>No, only scan</option>
+          <option value="fake" {{ 'selected' if provider == 'fake' }}>Fake gullible model (offline)</option>
+          <option value="real" {{ 'selected' if provider == 'real' }} {{ 'disabled' if not real_ready }}>Real model{% if real_label %} ({{ real_label }}){% else %} (set OPENROUTER_API_KEY){% endif %}</option>
+        </select>
+      </label>
+    </div>
+    <div class="checks">
+      <label><input type="checkbox" name="classifier" {{ 'checked' if classifier }} {{ 'disabled' if not classifier_ready }}> classifier layer</label>
+      <label><input type="checkbox" name="judge" {{ 'checked' if judge }} {{ 'disabled' if not judge_ready }}> LLM judge for borderline scores (real API call)</label>
+    </div>
+    <div class="stage-untrusted field">Source<input type="text" name="source" value="{{ chosen.source }}"></div>
+    <div class="stage-tool_call controls">
+      <label>Tool<input type="text" name="tool" value="{{ chosen.tool }}"></label>
+      <label style="grid-column: span 2">Arguments (JSON)<input type="text" name="arguments" value="{{ chosen.arguments }}"></label>
+    </div>
+    <label class="field"><span id="text-label">Text</span>
+      <textarea id="text" name="text" rows="6">{{ chosen.text }}</textarea>
+    </label>
+    <div class="stage-output field">System prompt (for leakage checks)<textarea name="system_prompt" rows="2">{{ chosen.system_prompt }}</textarea></div>
+    <div class="stage-tool_call field">Untrusted content the agent read before this call (separate items with a line <code>---</code>)<textarea name="tool_context" rows="2">{{ chosen.context | join('\n---\n') }}</textarea></div>
+    <button id="run" class="btn" type="submit">Run the guards</button>
+  </form>
+</div>
+<div id="result">{% if result %}{% include "partials/scan_result.html" %}{% endif %}</div>
+<script>
+  const LABELS = {input: "User message", untrusted: "Untrusted content (plain text or HTML)", output: "Model answer", tool_call: "The user's request (trusted context)"};
+  function showStage(stage) {
+    for (const s of ["input", "untrusted", "output", "tool_call"]) {
+      document.querySelectorAll(".stage-" + s).forEach(el => el.style.display = s === stage ? "" : "none");
+    }
+    document.getElementById("text-label").textContent = LABELS[stage];
+  }
+  showStage(document.getElementById("stage").value);
+</script>
+{% endblock %}

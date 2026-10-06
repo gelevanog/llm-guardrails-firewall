@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "_macros.html" import action %}
+{% block title %}Bulwark audit log{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>Audit log</h1>
+    <p class="muted">Every decision with guard scores, rules and reasons. Requests and tool arguments are stored as keyed hashes; at most a few short, redacted snippets of what fired.</p>
+  </div>
+  <div class="chips"><span class="chip">JSON: <a href="/audit">/audit</a></span><span class="chip">approvals: <a href="/v1/approvals">/v1/approvals</a></span></div>
+</section>
+<div class="tiles">
+  <div class="tile"><div class="tile-label">Requests</div><div class="tile-value num">{{ summary.requests }}</div><div class="tile-sub">{{ 'in memory, also appended to ' ~ audit_file if audit_file else 'since start, in memory' }}</div></div>
+  <div class="tile"><div class="tile-label">Blocked</div><div class="tile-value num">{{ summary.blocked }}</div><div class="tile-sub">refused input, answers, or tool calls</div></div>
+  <div class="tile"><div class="tile-label">Held for approval</div><div class="tile-value num">{{ summary.actions.get('require_approval', 0) }}</div><div class="tile-sub">{{ approvals | selectattr('status', 'equalto', 'pending') | list | length }} still pending</div></div>
+  <div class="tile"><div class="tile-label">Guards that fired</div><div class="tile-value num">{{ summary.guards.values() | sum }}</div>
+    <div class="tile-sub">{% for k, v in summary.guards.items() %}{% if loop.index <= 3 %}{{ k }} {{ v }}{% if not loop.last and loop.index < 3 %} · {% endif %}{% endif %}{% endfor %}</div></div>
+</div>
+<h2>Recent decisions</h2>
+<div class="panel">
+  {% if not records %}<p class="muted">No requests yet. Try the <a href="/">playground</a>, the <a href="/agent">agent demo</a>, or send a chat completion to <code>/v1/chat/completions</code>.</p>{% else %}
+  <table>
+    <thead><tr><th>Time (UTC)</th><th>Route</th><th>Policy</th><th>Outcome</th><th>What fired</th><th>Snippet (redacted)</th><th class="num">Guards</th><th class="num">Upstream</th><th>Request hash</th></tr></thead>
+    <tbody>
+    {% for r in records %}
+      <tr>
+        <td class="small num nowrap">{{ r.ts[11:23] }}</td>
+        <td class="small">{{ r.route }}{% if r.stream %} <span class="chip">stream</span>{% endif %}{% if r.taint != 'clean' %}<div class="small muted">taint: {{ r.taint }}</div>{% endif %}</td>
+        <td><code>{{ r.policy }}</code>{% if r.tenant %}<div class="small muted">{{ r.tenant }}</div>{% endif %}</td>
+        <td>{{ action(r.action) }}</td>
+        <td class="small">{% for s in r.stages if s.guards %}{% for g in s.guards %}<div class="nowrap"><strong>{{ g.guard | replace('_', ' ') }}</strong> {{ '%.2f' % g.score }} → {{ g.action | replace('_', ' ') }}{% if s.tool %} <code>{{ s.tool }}</code>{% endif %}{% if s.source %} <span class="muted">({{ s.source }})</span>{% endif %}</div><div class="small muted" title="{{ g.rules | join(', ') }}">{{ g.explanation[:90] }}</div>{% endfor %}{% else %}<span class="muted">nothing</span>{% endfor %}</td>
+        <td class="small muted">{% for sn in r.snippets %}<div><code>{{ sn }}</code></div>{% endfor %}</td>
+        <td class="num small nowrap">{{ '%.0f' % r.guard_ms }} ms</td>
+        <td class="num small nowrap">{% if r.upstream_ms is not none %}{{ '%.0f' % r.upstream_ms }} ms{% else %}–{% endif %}</td>
+        <td><code class="small">{{ r.request_hash[:12] }}</code></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

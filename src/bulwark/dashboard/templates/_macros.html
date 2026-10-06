@@ -1,0 +1,16 @@
+{% macro segments(items) -%}
+{%- for s in items -%}{%- if s.kind -%}<span class="mark-{{ s.kind }}" title="{{ s.title }}">{{ s.text }}</span>{%- else -%}{{ s.text }}{%- endif -%}{%- endfor -%}
+{%- endmacro %}
+{% macro action(a) -%}<span class="badge badge-{{ a }}">{{ a | replace('_', ' ') }}</span>{%- endmacro %}
+{% macro scorebar(v, hot=false) -%}<div class="score"><div class="track"><div class="fill {{ 'hot' if hot }}" style="width: {{ ((v or 0) * 100) | round(1) }}%"></div></div><span class="value">{{ '%.2f' % (v or 0) }}</span></div>{%- endmacro %}
+{% macro pct(value, digits=1) %}{% if value is none %}–{% else %}{{ ('%.' ~ digits ~ 'f') | format(value * 100) }}%{% endif %}{% endmacro %}
+{% macro f2(v) %}{% if v is none %}–{% else %}{{ '%.2f' % v }}{% endif %}{% endmacro %}
+{% macro guard_card(r) %}
+<div class="guard {{ 'fired' if r.triggered }}">
+  <div class="guard-head"><strong>{{ r.guard | replace('_', ' ') }}</strong>{{ action(r.action.value if r.action.value is defined else r.action) }}</div>
+  {{ scorebar(r.score, r.triggered) }}
+  {% if r.layer_scores %}<div class="layers">{% for k, v in r.layer_scores.items() %}<span class="chip">{{ k }} {{ '%.2f' % v }}</span>{% endfor %}<span class="chip">{{ '%.1f' % r.latency_ms }} ms</span></div>{% endif %}
+  <p class="small" style="margin-top:0.45rem">{{ r.explanation or 'nothing suspicious' }}</p>
+  {% if r.error %}<p class="small diff">error: {{ r.error }}</p>{% endif %}
+</div>
+{% endmacro %}
