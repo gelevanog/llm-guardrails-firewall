@@ -1,0 +1,26 @@
+# Optional: Bulwark in front of PII Shield (github.com/gelevanog/pii-redaction-gateway), cloned next to this repo.
+#   docker compose -f docker-compose.yml -f docker-compose.pii-shield.yml up --build
+# Chain: your app -> Bulwark (injection, exfiltration, tool calls) -> PII Shield (redaction) -> LLM provider.
+# Bulwark also asks PII Shield to check answers for personal data when a policy sets output.secrets.pii_shield.
+services:
+  bulwark:
+    environment:
+      BULWARK_UPSTREAM_PROVIDER: openai
+      OPENAI_BASE_URL: http://pii-shield:8000/v1
+      OPENAI_API_KEY: unused-pii-shield-forwards-with-its-own-key
+      BULWARK_PII_SHIELD_URL: http://pii-shield:8000
+    depends_on:
+      pii-shield:
+        condition: service_started
+
+  pii-shield:
+    build:
+      context: ../pii-redaction-gateway
+    image: pii-shield:latest
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PII_SHIELD_UPSTREAM_PROVIDER: ${PII_SHIELD_UPSTREAM_PROVIDER:-fake}
+    volumes:
+      - hf-cache:/home/app/.cache/huggingface

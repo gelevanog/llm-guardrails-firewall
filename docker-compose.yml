@@ -1,0 +1,27 @@
+# docker compose up --build  ->  http://localhost:8000  (playground at /, agent demo at /agent, API docs at /docs)
+# The upstream defaults to the offline fake gullible model, so no API keys are needed.
+# The classifier is downloaded on first start into the hf-cache volume (a few minutes once; see README > Docker).
+services:
+  bulwark:
+    build:
+      context: .
+      args:
+        EXTRAS: ${EXTRAS:-classifier}
+        BAKE_CLASSIFIER: ${BAKE_CLASSIFIER:-false}
+    image: bulwark:latest
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      BULWARK_UPSTREAM_PROVIDER: ${BULWARK_UPSTREAM_PROVIDER:-fake}
+      BULWARK_AUDIT_FILE: /home/app/audit/audit.jsonl
+    volumes:
+      - hf-cache:/home/app/.cache/huggingface
+      - audit:/home/app/audit
+    restart: unless-stopped
+
+volumes:
+  hf-cache:
+  audit:
