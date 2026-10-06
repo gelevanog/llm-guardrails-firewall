@@ -1,0 +1,56 @@
+name: email-agent
+description: Support-inbox agent with tools. Emails and knowledge-base chunks are untrusted; sending email outside the company needs approval, and recipients that only appear in untrusted content are blocked.
+fail_mode: closed
+
+input:
+  injection:
+    layers: {heuristics: true, classifier: true, judge: false}
+
+untrusted:
+  threshold: 0.5
+  on_detection: quarantine
+  spotlight: delimit
+  strip_hidden: true
+  layers: {heuristics: true, classifier: true, judge: false}
+
+output:
+  leakage: {canary: true, action: block}
+  exfiltration: {allowed_domains: [acme-outdoor.test], action: sanitize}
+  secrets: {action: sanitize}
+
+tools:
+  default: block
+  allowed:
+    search_inbox: {risk: read}
+    read_email: {risk: read}
+    search_kb: {risk: read}
+    lookup_order:
+      risk: read
+      schema:
+        type: object
+        properties: {order_id: {type: string, pattern: '^A-\d{4}$'}}
+        required: [order_id]
+    create_ticket:
+      risk: write
+      schema:
+        type: object
+        properties:
+          title: {type: string, maxLength: 200}
+          description: {type: string, maxLength: 4000}
+          priority: {enum: [low, normal, high, urgent]}
+          customer_email: {type: string}
+        required: [title, description]
+    send_email:
+      risk: external
+      schema:
+        type: object
+        properties:
+          to: {type: string, pattern: '^[^@\s,;]+@[^@\s,;]+$'}   # exactly one recipient
+          subject: {type: string, maxLength: 300}
+          body: {type: string, maxLength: 8000}
+        required: [to, subject, body]
+        additionalProperties: false
+      allowed_domains: {fields: [to], domains: [acme-outdoor.test], action: require_approval}
+  on_taint: {read: allow, write: allow, external: require_approval}
+  on_suspicious: {read: allow, write: require_approval, external: require_approval}
+  untrusted_arguments: {read: allow, write: require_approval, external: block}

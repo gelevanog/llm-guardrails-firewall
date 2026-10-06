@@ -1,0 +1,27 @@
+name: strict
+description: High-risk routes. Lower thresholds, the LLM judge on borderline scores, datamarked untrusted content, every tool call after untrusted content needs approval.
+fail_mode: closed
+
+input:
+  injection:
+    layers: {heuristics: true, classifier: true, judge: true}
+    flag_threshold: 0.4
+    block_threshold: 0.7
+    judge_band: [0.25, 0.7]
+
+untrusted:
+  threshold: 0.4
+  on_detection: block
+  spotlight: datamark
+  layers: {heuristics: true, classifier: true, judge: true}
+
+output:
+  leakage: {canary: true, similarity_threshold: 0.25, min_verbatim_words: 10, action: block}
+  exfiltration: {allowed_domains: [], action: sanitize}
+  secrets: {action: block}
+
+tools:
+  default: block
+  on_taint: {read: allow, write: require_approval, external: require_approval}
+  on_suspicious: {read: require_approval, write: block, external: block}
+  untrusted_arguments: {read: allow, write: block, external: block}

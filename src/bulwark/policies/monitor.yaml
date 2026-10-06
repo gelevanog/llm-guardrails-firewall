@@ -1,0 +1,7 @@
+name: monitor
+description: Shadow mode for rollouts. Every guard runs and every decision is audited, but nothing is blocked or changed.
+mode: monitor
+fail_mode: open
+
+tools:
+  default: allow

@@ -1,0 +1,29 @@
+name: default
+description: General-purpose gateway. Blocks direct injections, quarantines and spotlights injected tool results, strips data-carrying links and secrets from answers.
+mode: enforce                 # enforce | monitor (evaluate and audit only)
+fail_mode: closed             # a detection layer that errors counts as a detection
+block_response: error         # error (HTTP 400, OpenAI-style) | refusal (normal answer with refusal_message)
+
+input:
+  injection:
+    layers: {heuristics: true, classifier: true, judge: false}
+    flag_threshold: 0.5       # flag (header + audit) at or above
+    block_threshold: 0.85     # block at or above
+    action: block
+
+untrusted:                    # role "tool" messages and /v1/scan/untrusted
+  threshold: 0.5
+  on_detection: quarantine    # quarantine | strip | flag | block
+  spotlight: delimit          # off | delimit | datamark | encode
+  layers: {heuristics: true, classifier: true, judge: false}
+
+output:
+  leakage: {canary: true, similarity_threshold: 0.35, min_verbatim_words: 15, action: block}
+  exfiltration: {allowed_domains: [], action: sanitize}
+  secrets: {action: sanitize}
+
+tools:                        # the gateway does not know the client's tools: unknown tools count as external
+  default: allow
+  on_taint: {read: allow, write: allow, external: allow}
+  on_suspicious: {read: allow, write: require_approval, external: block}
+  untrusted_arguments: {read: allow, write: require_approval, external: require_approval}

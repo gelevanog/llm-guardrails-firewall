@@ -1,0 +1,36 @@
+name: support-bot
+description: Customer-support chat for an outdoor-gear shop. Answers only about orders, products, shipping, returns and accounts; refuses politely instead of returning errors.
+block_response: refusal
+refusal_message: "Sorry, I can only help with orders, products, shipping, returns and your account."
+
+input:
+  injection:
+    layers: {heuristics: true, classifier: true, judge: false}
+    flag_threshold: 0.5
+    block_threshold: 0.8
+  topics:
+    enabled: true
+    allowed: [orders, products, shipping, returns, account, payments]
+    denied: [weapons, malware, competitors]
+    definitions:
+      orders: ['\border', '\bpurchase', '\bbought\b', 'A-\d{4}', '\bcancel']
+      products: ['\btent', '\bjacket', '\bboots?\b', '\bbackpack', '\bsleeping bag', '\bsize\b', '\bstock\b', '\bproduct', '\bwarranty', '\bgear\b']
+      shipping: ['\bship', '\bdeliver', '\btracking', '\bcourier', '\bparcel', '\bpackage']
+      returns: ['\breturn', '\brefund', '\bexchange', '\bdamaged', '\bbroken', '\bfaulty']
+      account: ['\baccount', '\bpassword', '\blog ?in\b', '\bsign ?in\b', '\bemail address', '\bnewsletter', '\bunsubscribe']
+      payments: ['\bpay', '\binvoice', '\bcharged?\b', '\bcard\b', '\bdiscount', '\bvoucher', '\bcoupon', '\bprice']
+      weapons: ['\b(?:make|build|buy)\b.{0,30}\b(?:gun|bomb|explosive|weapon)s?\b']
+      malware: ['\b(?:write|create|build)\b.{0,30}\b(?:malware|ransomware|keylogger|virus|exploit)\b']
+      competitors: ['\bsummit ?supply\b', '\bpeak ?outfitters\b']
+
+untrusted:
+  spotlight: delimit
+
+output:
+  exfiltration: {allowed_domains: [acme-outdoor.test], action: sanitize}
+
+tools:
+  default: block
+  allowed:
+    lookup_order: {risk: read}
+    search_kb: {risk: read}
