@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Environments and secrets (keys live outside the repository)
+.venv/
+.env
+.env.*
+!.env.example
+*.key
+
+# Caches, downloaded datasets, model weights (small curated results live in results/)
+.cache/
+.hypothesis/
+*.safetensors
+*.bin
+*.pt
+*.onnx
+*.gguf
+models/
+audit.jsonl
+
+# Tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+report.xml
+.idea/
+.vscode/
+.DS_Store
+node_modules/

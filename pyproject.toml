@@ -1,0 +1,80 @@
+[project]
+name = "bulwark"
+version = "0.1.0"
+description = "Bulwark: an LLM firewall against prompt injection, jailbreaks and data exfiltration. A Python library and an OpenAI-compatible gateway."
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Ivan Savchenko" }]
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=1.0",
+    "fastapi",
+    "httpx",
+    "jinja2",
+    "jsonschema",
+    "pydantic",
+    "pydantic-settings",
+    "python-multipart",
+    "pyyaml",
+    "rich",
+    "structlog",
+    "typer",
+    "uvicorn[standard]",
+]
+
+[project.optional-dependencies]
+# The prompt-injection classifier (a small Transformer on CPU torch, see [tool.uv.sources]).
+classifier = ["torch", "transformers"]
+
+[dependency-groups]
+dev = ["hypothesis", "mypy", "openai", "pytest", "pytest-asyncio", "ruff", "types-jsonschema", "types-pyyaml"]
+
+[project.scripts]
+bulwark = "bulwark.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bulwark"]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = ["classifier: needs the `classifier` extra and a cached model (skipped otherwise)"]
+filterwarnings = ["ignore:`torch.jit.script` is deprecated:FutureWarning"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "ASYNC", "PTH", "N", "C4", "PIE", "RET", "TC"]
+ignore = ["TC001", "TC002", "TC003", "RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Form", "fastapi.Header", "fastapi.Depends", "typer.Option", "typer.Argument"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+mypy_path = "src"
+packages = ["bulwark"]
+
+[[tool.mypy.overrides]]
+module = ["torch.*", "transformers.*", "huggingface_hub.*"]  # only in the optional `classifier` extra
+ignore_missing_imports = true
+follow_imports = "skip"
