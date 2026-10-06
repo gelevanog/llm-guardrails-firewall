@@ -82,7 +82,7 @@ class InjectionDetector:
                     )
             detection.timings_ms["classifier"] = _ms(started)
 
-        combined = max(detection.layer_scores.values(), default=0.0)
+        combined = combine_scores(detection.layer_scores, layers)
         if layers.judge and self.judge is not None and judge_band[0] <= combined < judge_band[1]:
             started = time.perf_counter()
             try:
@@ -122,6 +122,17 @@ class InjectionDetector:
         # Also score decoded payloads: a base64 instruction is opaque to the model's tokenizer otherwise.
         extra = [view.text for view in decoded_views(text, rot13=False, reverse=False)][:3]
         return max(self.classifier.score_many([text, *extra]))
+
+
+def combine_scores(scores: dict[str, float], layers: Layers) -> float:
+    """Heuristics and classifier scores -> one score, per the policy's combination mode."""
+    heuristic = scores.get("heuristics", 0.0)
+    classifier = scores.get("classifier")
+    if classifier is None or layers.combine == "max" or heuristic >= layers.corroborate_min:
+        return max(heuristic, classifier or 0.0)
+    if classifier >= 0.5:
+        return max(heuristic, min(classifier, layers.classifier_alone_cap))
+    return heuristic
 
 
 def injection_result(detection: Detection, config: InjectionConfig, started: float) -> GuardResult:

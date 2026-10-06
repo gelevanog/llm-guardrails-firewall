@@ -4,7 +4,7 @@ fail_mode: closed
 
 input:
   injection:
-    layers: {heuristics: true, classifier: true, judge: true}
+    layers: {heuristics: true, classifier: true, judge: true, combine: max}
     flag_threshold: 0.4
     block_threshold: 0.7
     judge_band: [0.25, 0.7]
@@ -13,7 +13,7 @@ untrusted:
   threshold: 0.4
   on_detection: block
   spotlight: datamark
-  layers: {heuristics: true, classifier: true, judge: true}
+  layers: {heuristics: true, classifier: true, judge: true, combine: corroborate}
 
 output:
   leakage: {canary: true, similarity_threshold: 0.25, min_verbatim_words: 10, action: block}

@@ -31,11 +31,20 @@ class Layers(_Strict):
     classifier: bool = True
     judge: bool = False
     """LLM judge for borderline scores (a real API call; off by default)."""
+    combine: Literal["max", "corroborate"] = "corroborate"
+    """How heuristics and classifier scores combine. `max`: either layer alone can flag and block.
+    `corroborate`: the classifier raises a score only when the rules already saw something (heuristics score
+    >= `corroborate_min`); on its own it stops just under the flag threshold, where the judge (if enabled)
+    decides. Chosen by measurement: the classifier's false positives on business email (see README)."""
+    corroborate_min: float = Field(default=0.25, ge=0.0, le=1.0)
+    classifier_alone_cap: float = Field(default=0.45, ge=0.0, le=1.0)
 
 
 class InjectionConfig(_Strict):
     enabled: bool = True
-    layers: Layers = Field(default_factory=Layers)
+    layers: Layers = Field(default_factory=lambda: Layers(combine="max"))
+    """User input: the classifier may flag on its own (it adds recall on direct attacks at a low false-positive
+    rate). Untrusted content defaults to `corroborate` (see `Layers.combine`)."""
     flag_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
     block_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
     judge_band: tuple[float, float] = (0.3, 0.85)

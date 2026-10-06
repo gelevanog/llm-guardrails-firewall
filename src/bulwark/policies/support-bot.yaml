@@ -5,7 +5,7 @@ refusal_message: "Sorry, I can only help with orders, products, shipping, return
 
 input:
   injection:
-    layers: {heuristics: true, classifier: true, judge: false}
+    layers: {heuristics: true, classifier: true, judge: false, combine: max}
     flag_threshold: 0.5
     block_threshold: 0.8
   topics:

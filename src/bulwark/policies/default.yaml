@@ -6,7 +6,7 @@ block_response: error         # error (HTTP 400, OpenAI-style) | refusal (normal
 
 input:
   injection:
-    layers: {heuristics: true, classifier: true, judge: false}
+    layers: {heuristics: true, classifier: true, judge: false, combine: max}
     flag_threshold: 0.5       # flag (header + audit) at or above
     block_threshold: 0.85     # block at or above
     action: block
@@ -15,7 +15,7 @@ untrusted:                    # role "tool" messages and /v1/scan/untrusted
   threshold: 0.5
   on_detection: quarantine    # quarantine | strip | flag | block
   spotlight: delimit          # off | delimit | datamark | encode
-  layers: {heuristics: true, classifier: true, judge: false}
+  layers: {heuristics: true, classifier: true, judge: false, combine: corroborate}
 
 output:
   leakage: {canary: true, similarity_threshold: 0.35, min_verbatim_words: 15, action: block}

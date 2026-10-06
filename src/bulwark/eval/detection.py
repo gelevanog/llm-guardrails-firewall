@@ -117,8 +117,9 @@ async def score_judge(
 ) -> int:
     """Ask the judge about subset samples whose combined score is in the band. Returns the number of calls."""
     calls = 0
+    default = combiners(model, band)["default"]
     for item in _subset(scored, every):
-        combined = max(item.heuristics, item.classifier.get(model, 0.0))
+        combined = default(item)[0]
         if not band[0] <= combined < band[1]:
             continue
         calls += 1
@@ -172,8 +173,12 @@ def combiners(model: str, band: tuple[float, float]) -> dict[str, Combiner]:
         score = max(h, c) if h >= 0.25 else (min(c, 0.45) if c >= 0.5 else h)
         return score, classifier_ms(s, s.heuristics_ms)
 
+    def default(s: Scored) -> tuple[float, float | None]:
+        # What the shipped policies do: `max` for user input, `corroborate` for untrusted content.
+        return both(s) if s.context == "input" else corroborated(s)
+
     def with_judge(s: Scored) -> tuple[float, float | None]:
-        score, ms = both(s)
+        score, ms = default(s)
         judged = band[0] <= score < band[1] and (s.judge is not None or s.judge_error is not None)
         if not judged:
             return score, ms
@@ -186,6 +191,7 @@ def combiners(model: str, band: tuple[float, float]) -> dict[str, Combiner]:
         "classifier": classifier,
         "heuristics+classifier": both,
         "heuristics+classifier (corroborated)": corroborated,
+        "default": default,
         "heuristics+classifier+judge": with_judge,
     }
 
@@ -195,7 +201,8 @@ LABELS = {
     "classifier": "Classifier alone",
     "heuristics+classifier": "Heuristics + classifier (max)",
     "heuristics+classifier (corroborated)": "Heuristics + classifier (corroborated)",
-    "heuristics+classifier+judge": "Heuristics + classifier + LLM judge",
+    "default": "Bulwark default (input: max, untrusted: corroborated)",
+    "heuristics+classifier+judge": "Bulwark default + LLM judge",
 }
 
 

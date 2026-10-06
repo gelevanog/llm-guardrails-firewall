@@ -4,14 +4,14 @@ fail_mode: closed
 
 input:
   injection:
-    layers: {heuristics: true, classifier: true, judge: false}
+    layers: {heuristics: true, classifier: true, judge: false, combine: max}
 
 untrusted:
   threshold: 0.5
   on_detection: quarantine
   spotlight: delimit
   strip_hidden: true
-  layers: {heuristics: true, classifier: true, judge: false}
+  layers: {heuristics: true, classifier: true, judge: false, combine: corroborate}
 
 output:
   leakage: {canary: true, action: block}
