@@ -66,6 +66,13 @@ EXAMPLES: list[Example] = [
         ),
     ),
     Example(
+        id="customer-question",
+        group="Benign look-alikes",
+        label="Benign: customer question",
+        stage="input",
+        text="Hi! My order A-1004 hasn't arrived after ten days. Can I still return the sleeping bag if it comes late?",
+    ),
+    Example(
         id="hard-negative",
         group="Benign look-alikes",
         label="Hard negative: security question",

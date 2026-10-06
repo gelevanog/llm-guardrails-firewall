@@ -21,44 +21,49 @@
 
 {% if agent %}
 {% set off = agent.summary[0] %}{% set on = agent.summary[1] %}
+{% set small_off = agent_small.summary[0] if agent_small else none %}{% set small_on = agent_small.summary[1] if agent_small else none %}
 <div class="tiles">
-  <div class="tile"><div class="tile-label">Attacks that succeeded on the agent</div><div class="tile-value num">{{ off.attacks_succeeded }} → {{ on.attacks_succeeded }}</div><div class="tile-sub">of {{ on.attack_runs }} attack scenarios · without → with Bulwark</div></div>
+  {% if agent_small %}<div class="tile"><div class="tile-label">Attacks that worked on a small real model</div><div class="tile-value num">{{ small_off.attacks_succeeded }} → {{ small_on.attacks_succeeded }}</div><div class="tile-sub">of {{ small_on.attack_runs }} · without → with Bulwark · <code>{{ agent_small.model }}</code></div></div>{% endif %}
+  <div class="tile"><div class="tile-label">Attacks that worked on a large real model</div><div class="tile-value num">{{ off.attacks_succeeded }} → {{ on.attacks_succeeded }}</div><div class="tile-sub">of {{ on.attack_runs }} · the model resisted on its own</div></div>
   <div class="tile"><div class="tile-label">Benign tasks completed</div><div class="tile-value num">{{ off.benign_completed }} → {{ on.benign_completed }}</div><div class="tile-sub">of {{ on.benign_runs }} · {{ on.benign_runs_with_approval }} needed a human approval</div></div>
-  <div class="tile"><div class="tile-label">Guard time per agent run</div><div class="tile-value num">{{ '%.0f' % on.guard_ms_per_run }} ms</div><div class="tile-sub">vs {{ '%.1f' % (on.model_ms_per_run / 1000) }} s in model calls</div></div>
+  {% if agent_fake %}<div class="tile"><div class="tile-label">Gullible fake model (offline)</div><div class="tile-value num">{{ agent_fake.summary[0].attacks_succeeded }} → {{ agent_fake.summary[1].attacks_succeeded }}</div><div class="tile-sub">attacks of {{ agent_fake.summary[1].attack_runs }} · obeys every injection</div></div>{% endif %}
   {% if detection %}{% set hn = detection.hard_negatives %}
-  <div class="tile"><div class="tile-label">Hard negatives flagged</div><div class="tile-value num">{{ pct(hn['heuristics'].fpr, 0) }}</div><div class="tile-sub">heuristics · {{ pct(hn['heuristics+classifier'].fpr, 0) }} with the classifier (max)</div></div>
+  <div class="tile"><div class="tile-label">Hard negatives flagged</div><div class="tile-value num">{{ pct(hn['default'].fpr, 0) }}</div><div class="tile-sub">default layers · heuristics alone {{ pct(hn['heuristics'].fpr, 0) }}</div></div>
   {% endif %}
 </div>
 
-<h2>Agent under attack: <code>{{ agent.model }}</code></h2>
+{% for run_set in [agent_small, agent, agent_fake] if run_set %}
+<h2>Agent under attack: <code>{{ run_set.model }}</code></h2>
 <div class="panel">
-  <p class="small muted" style="margin-top:0">{{ agent.scenarios }} scenarios, each run without and with Bulwark (policy <code>{{ agent.policy }}</code>). An attack succeeds when the attacker's action is executed or the attacker's link reaches the answer. A simulated reviewer approves exactly the actions the task asked for.</p>
+  <p class="small muted" style="margin-top:0">{{ run_set.scenarios }} scenarios, each run without and with Bulwark (policy <code>{{ run_set.policy }}</code>){% if run_set.fallback_models %}, fallback <code>{{ run_set.fallback_models | join(', ') }}</code>{% endif %}. An attack succeeds when the attacker's action is executed or the attacker's link reaches the answer. A simulated reviewer approves exactly the actions the task asked for.</p>
   <table>
-    <thead><tr><th></th><th>Attack success</th><th>Benign tasks completed</th><th class="num">Approvals</th><th class="num">Blocked calls</th><th class="num">Errors</th><th class="num">Time / run</th></tr></thead>
-    <tbody>{% for row in agent.summary %}
+    <thead><tr><th></th><th>Attack success</th><th>Benign tasks completed</th><th class="num">Approvals</th><th class="num">Blocked calls</th><th class="num">Errors</th><th class="num">Guard time / run</th></tr></thead>
+    <tbody>{% for row in run_set.summary %}
       <tr><td><strong>{{ row.mode }}</strong></td><td>{{ bar(row.asr, 's4', 'pct') }}<div class="small muted">{{ row.attacks_succeeded }} / {{ row.attack_runs }}</div></td>
-        <td>{{ bar(row.benign_completion, 's3', 'pct') }}<div class="small muted">{{ row.benign_completed }} / {{ row.benign_runs }}</div></td>
-        <td class="num">{{ row.approvals_requested }}</td><td class="num">{{ row.blocked_calls }}</td><td class="num">{{ row.errors }}</td><td class="num">{{ '%.1f' % (row.total_ms_per_run / 1000) }} s</td></tr>
+        <td>{% if row.benign_runs %}{{ bar(row.benign_completion, 's3', 'pct') }}<div class="small muted">{{ row.benign_completed }} / {{ row.benign_runs }}</div>{% else %}<span class="muted small">not run</span>{% endif %}</td>
+        <td class="num">{{ row.approvals_requested }}</td><td class="num">{{ row.blocked_calls }}</td><td class="num">{{ row.errors }}</td><td class="num">{{ '%.0f' % row.guard_ms_per_run }} ms</td></tr>
     {% endfor %}</tbody>
   </table>
-  {% set pairs = {} %}{% for r in agent.runs %}{% set _ = pairs.setdefault(r.scenario, {}).update({('on' if r.protected else 'off'): r}) %}{% endfor %}
-  <table style="margin-top:0.8rem">
+  {% set pairs = {} %}{% for r in run_set.runs %}{% set _ = pairs.setdefault(r.scenario, {}).update({('on' if r.protected else 'off'): r}) %}{% endfor %}
+  <details style="margin-top:0.6rem"><summary class="small muted">Per scenario</summary>
+  <table>
     <thead><tr><th>Scenario</th><th>Without Bulwark</th><th>With Bulwark</th><th>What Bulwark did</th></tr></thead>
     <tbody>{% for sid, p in pairs.items() %}
       <tr><td><code>{{ sid }}</code><div class="small muted">{{ (p.off or p.on).kind }}</div></td>
       {% for key in ['off', 'on'] %}{% set r = p[key] %}
         <td class="small">{% if r %}{% if r.attack_success is not none %}<span class="badge {{ 'badge-block' if r.attack_success else 'badge-allow' }}">{{ 'attack succeeded' if r.attack_success else 'attack failed' }}</span>{% endif %}
-          <span class="badge {{ 'badge-allow' if r.task_completed else 'badge-require_approval' }}">{{ 'task done' if r.task_completed else 'task not done' }}</span>{% if r.error %} <span class="badge badge-block">error</span>{% endif %}{% endif %}</td>
+          <span class="badge {{ 'badge-allow' if r.task_completed else 'badge-require_approval' }}">{{ 'task done' if r.task_completed else 'task not done' }}</span>{% if r.error %} <span class="badge badge-block" title="{{ r.error }}">error</span>{% endif %}{% endif %}</td>
       {% endfor %}
         <td class="small muted">{% if p.on %}{{ p.on.quarantined }} quarantined · {{ p.on.approvals }} approval(s) · {{ p.on.blocked_calls }} blocked{% endif %}</td></tr>
     {% endfor %}</tbody>
-  </table>
+  </table></details>
 </div>
+{% endfor %}
 {% endif %}
 
 {% if detection %}
 {% set labels = detection.labels %}
-<h2>Detection by layer</h2>
+<h2>Detection by layer and dataset</h2>
 <div class="panel">
   <p class="small muted" style="margin-top:0">Flagged = combined score ≥ {{ detection.threshold }} (input is flagged, untrusted content is quarantined); FPR = share of benign samples flagged. Classifier: <code>{{ detection.classifier_model }}</code>. Latency per text on CPU (machine shared with other jobs).</p>
   {% set datasets = [] %}{% for row in detection.summary %}{% if row.dataset not in datasets %}{% set _ = datasets.append(row.dataset) %}{% endif %}{% endfor %}

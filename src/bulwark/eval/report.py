@@ -87,7 +87,12 @@ def write_report(directory: Path) -> Path:
                 f"| `{row['model']}` | {row['params_m']}M | {cells} | {_pct(row['hard_negative_fpr'])} | "
                 f"{row['ms_per_text']:.0f} |"
             )
-    for name, title in (("agent.json", "real model"), ("agent_fake.json", "fake gullible model")):
+    titles = {
+        "agent.json": "real model",
+        "agent_small.json": "small real model",
+        "agent_fake.json": "fake gullible model",
+    }
+    for name, title in titles.items():
         agent = _load(directory / name)
         if not agent:
             continue

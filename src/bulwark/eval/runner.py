@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from bulwark.agent_demo.agent import run_agent
+from bulwark.agent_demo.agent import DEMO_SEED, run_agent
 from bulwark.agent_demo.fake_model import GullibleAgentModel
 from bulwark.agent_demo.scenarios import load_scenarios, score_run, simulated_reviewer
 from bulwark.classifier import CANDIDATES, InjectionClassifier
@@ -163,7 +163,13 @@ class EvalRunner:
         }
         summary: list[dict[str, Any]] = []
         for name, items in groups.items():
-            for key in ("heuristics", "classifier", "heuristics+classifier", "heuristics+classifier (corroborated)"):
+            for key in (
+                "heuristics",
+                "classifier",
+                "heuristics+classifier",
+                "heuristics+classifier (corroborated)",
+                "default",
+            ):
                 summary.append(
                     {
                         "dataset": name,
@@ -176,7 +182,7 @@ class EvalRunner:
             for name, items in subset_items.items():
                 if not items:
                     continue
-                for key in ("heuristics", "heuristics+classifier", "heuristics+classifier+judge"):
+                for key in ("heuristics", "heuristics+classifier", "default", "heuristics+classifier+judge"):
                     judge_rows.append(
                         {
                             "dataset": name,
@@ -203,19 +209,25 @@ class EvalRunner:
             "summary": summary,
             "hard_negatives": {
                 key: evaluate(hard, combine[key], cfg.threshold, cfg.block_threshold)
-                for key in ("heuristics", "classifier", "heuristics+classifier", "heuristics+classifier (corroborated)")
+                for key in (
+                    "heuristics",
+                    "classifier",
+                    "heuristics+classifier",
+                    "heuristics+classifier (corroborated)",
+                    "default",
+                )
             },
             "by_category": {
                 name: {
                     key: by_category(items, combine[key], cfg.threshold)
-                    for key in ("heuristics", "classifier", "heuristics+classifier")
+                    for key in ("heuristics", "classifier", "heuristics+classifier", "default")
                 }
                 for name, items in groups.items()
                 if ":" not in name
             },
             "errors": {
                 key: errors(groups.get("handwritten", []), combine[key], cfg.threshold)
-                for key in ("heuristics", "heuristics+classifier")
+                for key in ("heuristics", "heuristics+classifier", "default")
             },
         }
         previous = self.out / "detection.json"
@@ -241,7 +253,7 @@ class EvalRunner:
                     {
                         "id": s.id,
                         "label": s.label,
-                        "before": round(max(s.heuristics, s.classifier.get(model, 0.0)), 3),
+                        "before": round(combine["default"](s)[0], 3),
                         "judge": s.judge,
                         "error": s.judge_error,
                     }
@@ -301,13 +313,22 @@ class EvalRunner:
         self._write("classifier_choice.json", report)
         return report
 
-    def agent(self, *, real: bool, only: list[str] | None = None) -> dict[str, Any]:
-        return asyncio.run(self._agent(real=real, only=only))
+    def agent(
+        self, *, real: bool, only: list[str] | None = None, model: str | None = None, output: str | None = None
+    ) -> dict[str, Any]:
+        return asyncio.run(self._agent(real=real, only=only, model_override=model, output=output))
 
-    async def _agent(self, *, real: bool, only: list[str] | None) -> dict[str, Any]:
+    async def _agent(
+        self, *, real: bool, only: list[str] | None, model_override: str | None, output: str | None
+    ) -> dict[str, Any]:
         cfg = self.config.agent
+        if model_override:
+            # A second model is run without fallbacks, so another model cannot silently answer in its place.
+            cfg = cfg.model_copy(update={"model": LlmConfig(provider=cfg.model.provider, model=model_override)})
         classifier = InjectionClassifier(self.config.classifier_model, threads=self.settings.classifier_threads)
-        firewall = Firewall(PolicySet.from_dir(self.settings.policies_dir, "default"), classifier=classifier)
+        firewall = Firewall(
+            PolicySet.from_dir(self.settings.policies_dir, "default"), classifier=classifier, seed=DEMO_SEED
+        )
         provider: ChatProvider = self.llm(cfg.model, "agent") if real else GullibleAgentModel()
         model = cfg.model.model if real else "auto"
         items = [s for s in load_scenarios() if not only or s.id in only]
@@ -334,11 +355,11 @@ class EvalRunner:
                         "answer": run.answer[:1200],
                         "raw_answer": run.raw_answer[:1200] if run.raw_answer != run.answer else None,
                         "executed": run.executed,
-                        "approvals": [a.model_dump() for a in run.approvals],
+                        "approval_requests": [a.model_dump() for a in run.approvals],
                         "steps": [st.model_dump() for st in run.steps],
                     }
                 )
-        name = "agent.json" if real else "agent_fake.json"
+        name = output or ("agent.json" if real else "agent_fake.json")
         report: dict[str, Any] = {
             "created": _now(),
             "model": cfg.model.model if real else provider.label,

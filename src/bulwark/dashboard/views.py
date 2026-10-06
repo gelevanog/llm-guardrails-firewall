@@ -12,11 +12,12 @@ from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from bulwark.agent_demo.agent import AgentRun, run_agent
+from bulwark.agent_demo.agent import DEMO_SEED, AgentRun, run_agent
 from bulwark.agent_demo.fake_model import GullibleAgentModel
 from bulwark.agent_demo.scenarios import Score, load_scenarios, scenario, score_run, simulated_reviewer
 from bulwark.core import Decision, Finding
 from bulwark.dashboard.examples import EXAMPLES, Example
+from bulwark.firewall import Firewall
 from bulwark.gateway.messages import prepare_request
 from bulwark.gateway.runtime import Runtime
 from bulwark.guards.untrusted import UntrustedReport
@@ -27,7 +28,10 @@ from bulwark.providers.fake import FakeProvider
 from bulwark.taint import TaintState
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
-PLAYGROUND_SYSTEM = "You are a helpful support assistant for Acme Outdoor, an outdoor-gear shop."
+PLAYGROUND_SYSTEM = (
+    "You are a helpful support assistant for Acme Outdoor, an outdoor-gear shop. You have no tools and no access to "
+    "order data: answer in two or three plain-text sentences, using general shop policies (30-day returns)."
+)
 
 
 @dataclass
@@ -214,9 +218,20 @@ async def run_comparison(runtime: Runtime, scenario_id: str, model_key: str, rev
             else runtime.real_provider
         )
     approver = simulated_reviewer(item) if reviewer == "simulated" else None
+    # The explicit model id keeps request bodies identical to the evaluation's, so cached answers are replayed.
+    model = str(getattr(getattr(provider, "inner", provider), "default_model", "auto"))
+    seeded = Firewall(
+        runtime.firewall.policies,
+        classifier=runtime.firewall.classifier,
+        judge=runtime.firewall.detector.judge,
+        pii_shield=runtime.firewall.pii_shield,
+        seed=DEMO_SEED,
+    )
     runs: list[tuple[AgentRun, Score]] = []
-    for firewall in (None, runtime.firewall):
-        run = await run_agent(item.task, provider=provider, firewall=firewall, approver=approver, scenario=item.id)
+    for firewall in (None, seeded):
+        run = await run_agent(
+            item.task, provider=provider, firewall=firewall, approver=approver, scenario=item.id, model=model
+        )
         runs.append((run, score_run(item, run)))
         if firewall is not None:
             record = runtime.audit.new_record(route="agent_demo", policy="email-agent", request=item.task)
@@ -381,6 +396,8 @@ def register_dashboard(app: FastAPI, runtime: Runtime) -> None:
                 detection=_load_json(directory / "detection.json"),
                 classifiers=_load_json(directory / "classifier_choice.json"),
                 agent=_load_json(directory / "agent.json"),
+                agent_small=_load_json(directory / "agent_small.json"),
+                agent_fake=_load_json(directory / "agent_fake.json"),
                 calls=_load_json(directory / "calls_summary.json"),
                 results_dir=str(directory),
             ),

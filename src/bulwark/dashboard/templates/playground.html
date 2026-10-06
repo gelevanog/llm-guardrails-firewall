@@ -38,7 +38,7 @@
       </label>
     </div>
     <div class="checks">
-      <label><input type="checkbox" name="classifier" {{ 'checked' if classifier }} {{ 'disabled' if not classifier_ready }}> classifier layer</label>
+      <label><input type="checkbox" name="classifier" {{ 'checked' if classifier and classifier_ready }} {{ 'disabled' if not classifier_ready }}> classifier layer</label>
       <label><input type="checkbox" name="judge" {{ 'checked' if judge }} {{ 'disabled' if not judge_ready }}> LLM judge for borderline scores (real API call)</label>
     </div>
     <div class="stage-untrusted field">Source<input type="text" name="source" value="{{ chosen.source }}"></div>
@@ -50,7 +50,7 @@
       <textarea id="text" name="text" rows="6">{{ chosen.text }}</textarea>
     </label>
     <div class="stage-output field">System prompt (for leakage checks)<textarea name="system_prompt" rows="2">{{ chosen.system_prompt }}</textarea></div>
-    <div class="stage-tool_call field">Untrusted content the agent read before this call (separate items with a line <code>---</code>)<textarea name="tool_context" rows="2">{{ chosen.context | join('\n---\n') }}</textarea></div>
+    <div class="stage-tool_call field">Untrusted content the agent read before this call (separate items with a line of three dashes)<textarea name="tool_context" rows="2">{{ chosen.context | join('\n---\n') }}</textarea></div>
     <button id="run" class="btn" type="submit">Run the guards</button>
   </form>
 </div>

@@ -256,13 +256,17 @@ def eval_agent(
         bool, typer.Option("--real/--fake", help="Real free model (OpenRouter) or the fake gullible one.")
     ] = False,
     scenarios: Annotated[str | None, typer.Option(help="Comma-separated scenario ids (default: all).")] = None,
+    model: Annotated[str | None, typer.Option(help="Another model id than the config's (no fallbacks).")] = None,
+    output: Annotated[
+        str | None, typer.Option(help="Result file name in the output dir, e.g. agent_small.json.")
+    ] = None,
 ) -> None:
     """Attack success rate and task completion, without vs with Bulwark."""
     from bulwark.eval.report import write_report
     from bulwark.eval.runner import EvalRunner
 
     runner = EvalRunner.from_config(config, _settings())
-    result = runner.agent(real=real, only=scenarios.split(",") if scenarios else None)
+    result = runner.agent(real=real, only=scenarios.split(",") if scenarios else None, model=model, output=output)
     for mode in result["summary"]:
         console.print(mode)
     if real:

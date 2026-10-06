@@ -23,7 +23,7 @@ detection:
   threshold: 0.5                    # flagged (and, for untrusted content, quarantined) at or above
   block_threshold: 0.85
   judge_band: [0.25, 0.85]          # the judge decides scores in this band
-  judge_every: {handwritten: 1, deepset: 4, jailbreakbench: 4, bipia: 2}
+  judge_every: {handwritten: 1, deepset: 1, jailbreakbench: 1, bipia: 1}   # only samples in the band are sent
 
 classifier_model: protectai/deberta-v3-base-prompt-injection-v2
 classifier_candidates:

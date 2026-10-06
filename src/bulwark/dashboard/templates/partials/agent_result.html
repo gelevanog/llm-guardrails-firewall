@@ -4,7 +4,7 @@
 {% for run, score in c.runs %}
   <div class="panel">
     <div class="col-head"><h3>{{ 'With Bulwark' if run.protected else 'Without Bulwark' }}</h3>
-      <span class="small muted">{{ run.model_calls }} model calls · {{ '%.1f' % (run.model_ms / 1000) }} s model{% if run.protected %} · {{ '%.0f' % run.guard_ms }} ms guards{% endif %}</span></div>
+      <span class="small muted">{{ run.model_calls }} model calls{% if run.cached_calls == run.model_calls and run.model_calls %} (replayed from the evaluation's cache){% else %} · {{ '%.1f' % (run.model_ms / 1000) }} s model{% endif %}{% if run.protected %} · {{ '%.0f' % run.guard_ms }} ms guards{% endif %}</span></div>
     {% if score.attack_success is not none %}
       {% if score.attack_success %}<div class="outcome bad">Attack succeeded: {{ score.attack_evidence }}</div>
       {% else %}<div class="outcome good">Attack failed{% if run.protected %}{% if run.blocked_calls %} · {{ run.blocked_calls }} call(s) blocked{% endif %}{% if run.quarantined %} · {{ run.quarantined }} document(s) quarantined{% endif %}{% if run.approvals %} · {{ run.approvals | length }} sent for approval{% endif %}{% endif %}</div>{% endif %}
@@ -18,6 +18,7 @@
           <div class="tl-detail">{{ st.detail[:600] }}</div>
           {% if st.data.removed %}<div class="tl-detail"><span class="diff">Removed:</span> {% for r in st.data.removed %}“{{ r.snippet[:160] }}” ({{ r.reason }}){% if not loop.last %}; {% endif %}{% endfor %}</div>{% endif %}
           {% for h in st.data.hidden if h.suspicious %}<div class="tl-detail"><span class="diff">Hidden ({{ h.reason }}):</span> {{ h.text[:200] }}</div>{% endfor %}
+        {% elif st.kind == 'answer' %}<div class="tl-detail" style="max-height:none;color:var(--text)">{{ st.detail }}</div>
         {% elif st.detail %}<div class="tl-detail">{{ st.detail[:700] }}</div>{% endif %}
       </div>
       {% endfor %}
