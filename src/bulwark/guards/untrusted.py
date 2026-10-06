@@ -92,7 +92,13 @@ class UntrustedContentGuard:
         self.detector = detector
 
     async def inspect(
-        self, content: str, source: str, config: UntrustedConfig, *, fail_closed: bool = True
+        self,
+        content: str,
+        source: str,
+        config: UntrustedConfig,
+        *,
+        fail_closed: bool = True,
+        block_id: str | None = None,
     ) -> tuple[GuardResult, UntrustedReport]:
         started = time.perf_counter()
         findings: list[Finding] = []
@@ -156,7 +162,7 @@ class UntrustedContentGuard:
             flagged=flagged,
             score=round(score, 4),
             sanitized=sanitized,
-            model_text=spotlight(sanitized, config.spotlight, source),
+            model_text=spotlight(sanitized, config.spotlight, source, block_id=block_id),
             removals=removals,
             hidden=hidden,
             withheld=withheld,

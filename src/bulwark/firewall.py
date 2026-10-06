@@ -14,6 +14,9 @@ Every check returns a `Decision` with per-guard scores, actions and explanations
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import secrets
 import time
 from pathlib import Path
 from typing import Any
@@ -24,7 +27,7 @@ from bulwark.core import Action, ApprovalRequest, Decision, GuardResult, Stage, 
 from bulwark.guards.exfiltration import check_exfiltration
 from bulwark.guards.injection import InjectionDetector, injection_result
 from bulwark.guards.judge import LlmJudge
-from bulwark.guards.leakage import check_leakage, make_canary, with_canary
+from bulwark.guards.leakage import CANARY_PREFIX, check_leakage, make_canary, with_canary
 from bulwark.guards.secrets import PiiShieldClient, check_secrets
 from bulwark.guards.spotlight import spotlight_instructions
 from bulwark.guards.tools import check_tool_call
@@ -46,8 +49,13 @@ class Firewall:
         classifier: InjectionClassifier | None = None,
         judge: LlmJudge | None = None,
         pii_shield: PiiShieldClient | None = None,
+        seed: bytes | None = None,
     ) -> None:
         self.policies = policies
+        self.seed = seed
+        """Evaluation and demo only: a fixed secret, so identical conversations produce identical requests (and
+        cached model answers replay). Without it the secret is random per process."""
+        self._secret = seed or secrets.token_bytes(32)
         self.detector = InjectionDetector(classifier=classifier, judge=judge)
         self.untrusted_guard = UntrustedContentGuard(self.detector)
         self.pii_shield = pii_shield
@@ -72,6 +80,11 @@ class Firewall:
             judge=judge,
             pii_shield=PiiShieldClient(pii_shield_url) if pii_shield_url else None,
         )
+
+    def derived(self, material: str, length: int) -> str:
+        """A keyed hash: unpredictable without the secret, stable for the same input. Spotlight ids and canaries
+        use it so a conversation's earlier turns stay byte-identical (provider prompt caching keeps working)."""
+        return hmac.new(self._secret, material.encode("utf-8"), hashlib.sha256).hexdigest()[:length]
 
     @property
     def classifier(self) -> InjectionClassifier | None:
@@ -115,7 +128,7 @@ class Firewall:
             report = UntrustedReport(source=source, flagged=False, score=0.0, sanitized=content, model_text=content)
             return _decision("untrusted", rules, [], text=content), report
         result, report = await self.untrusted_guard.inspect(
-            content, source, config, fail_closed=rules.fail_mode == "closed"
+            content, source, config, fail_closed=rules.fail_mode == "closed", block_id=self.derived(source + content, 8)
         )
         decision = _decision("untrusted", rules, [result], latency_ms=_ms(started))
         # Spotlighting and hidden-text stripping always apply; flagged spans only when the policy is enforced.
@@ -203,7 +216,7 @@ class GuardSession:
         self.firewall = firewall
         self.policy = policy
         self.taint = TaintState()
-        self.canary = make_canary()
+        self.canary = f"{CANARY_PREFIX}-{firewall.derived('canary', 12)}" if firewall.seed else make_canary()
         self.system_prompt: str | None = None
         self.decisions: list[Decision] = []
         self._conversation: list[str] = []
@@ -211,6 +224,7 @@ class GuardSession:
     def protect_system_prompt(self, prompt: str, *, spotlight_note: bool = True) -> str:
         """The system prompt to send: yours, plus the spotlighting note and the canary."""
         self.system_prompt = prompt
+        self.canary = f"{CANARY_PREFIX}-{self.firewall.derived('canary:' + prompt, 12)}"
         self.taint.add_trusted(prompt)
         note = spotlight_instructions(self.policy.untrusted.spotlight) if spotlight_note else ""
         full = f"{prompt.rstrip()}\n\n{note}" if note else prompt
