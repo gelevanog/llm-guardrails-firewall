@@ -182,6 +182,19 @@ def invisible_counts(text: str) -> dict[str, int]:
     return counts
 
 
+_SUBDIVISION = re.compile(r"[a-z]{2}[a-z0-9]{1,4}")
+
+
+def _is_flag_emoji(text: str, start: int, end: int, decoded: list[str]) -> bool:
+    """England, Scotland, Wales...: U+1F3F4, a lower-case region code in tag characters, then CANCEL TAG."""
+    return (
+        start > 0
+        and text[start - 1] == "\U0001f3f4"
+        and ord(text[end - 1]) == 0xE007F
+        and _SUBDIVISION.fullmatch("".join(decoded)) is not None
+    )
+
+
 def find_hidden_payloads(text: str, min_chars: int = 4) -> list[HiddenPayload]:
     """Decode runs of tag characters (ASCII smuggling) and variation-selector byte encodings."""
     payloads: list[HiddenPayload] = []
@@ -196,6 +209,8 @@ def find_hidden_payloads(text: str, min_chars: int = 4) -> list[HiddenPayload]:
                 if 0x20 <= inner <= 0x7E:
                     decoded.append(chr(inner))
                 position += 1
+            if _is_flag_emoji(text, start, position, decoded):
+                continue
             if len(decoded) >= min_chars:
                 payloads.append(HiddenPayload("tag-chars", "".join(decoded), start, position))
             continue
