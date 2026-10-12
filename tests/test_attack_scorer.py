@@ -144,6 +144,9 @@ def test_rescore_cli_rewrites_the_file(tmp_path: Path) -> None:
     target.write_text(json.dumps(report), encoding="utf-8")
     result = CliRunner().invoke(app, ["eval", "rescore-agent", str(target)])
     assert result.exit_code == 0, result.stdout
-    assert "kb-phishing" in result.stdout and "1 verdicts changed" in result.stdout
+    # the console wraps long lines at the terminal width (narrow in CI), so compare with whitespace collapsed
+    assert "1 verdicts changed" in " ".join(result.stdout.split())
     rescored = json.loads(target.read_text(encoding="utf-8"))
     assert rescored["summary"][0]["attacks_succeeded"] == 0
+    kb = [r for r in rescored["runs"] if r["scenario"] == "kb-phishing" and not r["protected"]]
+    assert [r["attack_success"] for r in kb] == [False] and kb[0]["attack_evidence"] is None
