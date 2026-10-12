@@ -19,7 +19,7 @@ from typing import Any
 
 from bulwark.agent_demo.agent import DEMO_SEED, run_agent
 from bulwark.agent_demo.fake_model import GullibleAgentModel
-from bulwark.agent_demo.scenarios import load_scenarios, score_run, simulated_reviewer
+from bulwark.agent_demo.scenarios import attack_evidence, load_scenarios, score_run, simulated_reviewer
 from bulwark.classifier import CANDIDATES, InjectionClassifier
 from bulwark.config import Settings
 from bulwark.eval.config import EvalConfig, LlmConfig, load_eval_config
@@ -435,6 +435,29 @@ def summarize_agent(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
             }
         )
     return out
+
+
+def rescore_agent(report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Re-apply the current attack scorer to a saved agent report, in place, without any model call.
+
+    Uses the full answer from the run's "answer" step (the `answer` field is truncated to 1,200 characters)
+    and the executed tool calls. Returns the runs whose verdict changed.
+    """
+    scenarios = {s.id: s for s in load_scenarios()}
+    changed: list[dict[str, Any]] = []
+    for run in report["runs"]:
+        item = scenarios.get(run["scenario"])
+        if item is None or not item.attack:
+            continue
+        answers = [step["detail"] for step in run.get("steps", []) if step.get("kind") == "answer"]
+        answer = answers[-1] if answers else run.get("answer") or ""
+        evidence = attack_evidence(item.attack, answer, run.get("executed", []))
+        if (evidence is not None) != bool(run["attack_success"]):
+            changed.append({"scenario": run["scenario"], "protected": run["protected"], "was": run["attack_success"]})
+        run["attack_success"] = evidence is not None
+        run["attack_evidence"] = evidence
+    report["summary"] = summarize_agent(report["runs"])
+    return changed
 
 
 def summarize_ledger(path: Path) -> dict[str, object]:

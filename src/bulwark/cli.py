@@ -310,6 +310,28 @@ def _eval_runner(
     return EvalRunner(type(cfg).model_validate(cfg.model_dump()), _settings())
 
 
+@eval_app.command("rescore-agent")
+def eval_rescore_agent(
+    files: Annotated[list[Path], typer.Argument(help="Saved agent result files, e.g. results/agent.json.")],
+) -> None:
+    """Re-score saved agent runs with the current attack scorer (offline, no model calls), then re-render report.md."""
+    import json
+
+    from bulwark.eval.report import write_report
+    from bulwark.eval.runner import rescore_agent
+
+    for path in files:
+        report = json.loads(path.read_text(encoding="utf-8"))
+        changed = rescore_agent(report)
+        path.write_text(json.dumps(report, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+        for row in changed:
+            mode = "with" if row["protected"] else "without"
+            console.print(f"{path}: {row['scenario']} ({mode} Bulwark) attack success {row['was']} -> {not row['was']}")
+        console.print(f"{path}: {len(changed)} verdicts changed; {report['summary']}")
+        if (path.parent / "report.md").exists():
+            console.print(f"report: {write_report(path.parent)}")
+
+
 @eval_app.command("report")
 def eval_report(directory: Annotated[Path, typer.Argument()] = Path("results")) -> None:
     """Re-render results/report.md from the JSON artifacts."""
