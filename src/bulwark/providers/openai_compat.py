@@ -141,6 +141,14 @@ def _error_message(data: JsonDict) -> str:
     return str(error)[:300]
 
 
+QUOTA_ERRORS = {"insufficient_quota", "budget_exhausted"}
+
+
+def _quota_exhausted(data: JsonDict) -> bool:
+    error = data.get("error")
+    return isinstance(error, dict) and bool({str(error.get("type")), str(error.get("code"))} & QUOTA_ERRORS)
+
+
 def _json_or_error(response: httpx.Response) -> JsonDict:
     status = response.status_code
     try:
@@ -157,6 +165,9 @@ def _json_or_error(response: httpx.Response) -> JsonDict:
     if status < 400:
         return data
     message = _error_message(data)
+    if status == 429 and _quota_exhausted(data):
+        # A spent quota or budget does not come back with backoff; retrying only burns the call budget.
+        raise ProviderError(f"quota exhausted: {message}", 429)
     if status == 429:
         retry_after = response.headers.get("retry-after")
         try:

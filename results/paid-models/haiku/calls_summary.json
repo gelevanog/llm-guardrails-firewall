@@ -1,0 +1,20 @@
+{
+ "total_requests": 220,
+ "by_status": {
+  "ok": 213,
+  "error": 7
+ },
+ "by_tag": {
+  "judge": 118,
+  "agent": 102
+ },
+ "served_models": {
+  "claude-haiku-5-5": 213
+ },
+ "requested_models": [
+  "claude-haiku-5-5"
+ ],
+ "all_model_ids_free": false,
+ "input_tokens": 259424,
+ "output_tokens": 34237
+}

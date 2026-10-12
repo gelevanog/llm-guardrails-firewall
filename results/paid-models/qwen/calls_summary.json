@@ -1,0 +1,20 @@
+{
+ "total_requests": 229,
+ "by_status": {
+  "ok": 221,
+  "retryable_error": 8
+ },
+ "by_tag": {
+  "judge": 119,
+  "agent": 110
+ },
+ "served_models": {
+  "qwen3.7-plus": 221
+ },
+ "requested_models": [
+  "qwen3.7-plus"
+ ],
+ "all_model_ids_free": false,
+ "input_tokens": 180758,
+ "output_tokens": 12925
+}

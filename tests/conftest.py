@@ -18,7 +18,13 @@ from bulwark.providers.fake import FakeProvider, RecordingProvider
 
 @pytest.fixture(autouse=True)
 def _no_real_keys(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    for name in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "BULWARK_PII_SHIELD_URL"):
+    for name in (
+        "OPENROUTER_API_KEY",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "BULWARK_PII_SHIELD_URL",
+        "BULWARK_ALLOW_PAID_MODELS",
+    ):
         monkeypatch.delenv(name, raising=False)
     yield
 

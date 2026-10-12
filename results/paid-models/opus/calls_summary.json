@@ -1,0 +1,20 @@
+{
+ "total_requests": 221,
+ "by_status": {
+  "ok": 215,
+  "error": 6
+ },
+ "by_tag": {
+  "judge": 114,
+  "agent": 107
+ },
+ "served_models": {
+  "claude-opus-5-5": 215
+ },
+ "requested_models": [
+  "claude-opus-5-5"
+ ],
+ "all_model_ids_free": false,
+ "input_tokens": 268253,
+ "output_tokens": 26866
+}

@@ -19,7 +19,7 @@ from typing import Any
 
 from bulwark.agent_demo.agent import DEMO_SEED, run_agent
 from bulwark.agent_demo.fake_model import GullibleAgentModel
-from bulwark.agent_demo.scenarios import load_scenarios, score_run, simulated_reviewer
+from bulwark.agent_demo.scenarios import attack_evidence, load_scenarios, score_run, simulated_reviewer
 from bulwark.classifier import CANDIDATES, InjectionClassifier
 from bulwark.config import Settings
 from bulwark.eval.config import EvalConfig, LlmConfig, load_eval_config
@@ -76,6 +76,7 @@ def _now() -> str:
 
 class EvalRunner:
     def __init__(self, config: EvalConfig, settings: Settings) -> None:
+        config.check_paid_opt_in(settings.allow_paid_models)
         self.config = config
         self.settings = settings.model_copy(
             update={"require_free_models": config.require_free_models, "llm_ledger": config.output_dir / "calls.jsonl"}
@@ -92,7 +93,13 @@ class EvalRunner:
     def llm(self, llm: LlmConfig, tag: str) -> ResilientProvider:
         if self._ledger is None:
             self._ledger = CallLedger(self.out / "calls.jsonl", self.config.max_calls)
-        inner = build_provider(self.settings, kind=llm.provider, model=llm.model, fallback_models=llm.fallback_models)
+        inner = build_provider(
+            self.settings,
+            kind=llm.provider,
+            model=llm.model,
+            fallback_models=llm.fallback_models,
+            base_url=llm.base_url,
+        )
         return ResilientProvider(
             inner,
             ledger=self._ledger,
@@ -149,8 +156,12 @@ class EvalRunner:
                 model=self.config.judge.model,
                 openrouter=self.config.judge.provider == "openrouter",
                 boundary_key=b"bulwark-eval",
+                portable=self.config.judge.portable,
+                max_tokens=self.config.judge.max_tokens or 1500,
             )
-            judge_calls = await score_judge(scored, llm_judge, model, cfg.judge_band, cfg.judge_every)
+            judge_calls = await score_judge(
+                scored, llm_judge, model, cfg.judge_band, cfg.judge_every, limit=cfg.judge_limit
+            )
         combine = combiners(model, cfg.judge_band)
         groups: dict[str, list[Scored]] = {}
         for item in scored:
@@ -236,6 +247,7 @@ class EvalRunner:
                 "model": self.config.judge.model,
                 "band": list(cfg.judge_band),
                 "every": cfg.judge_every,
+                "limit": cfg.judge_limit,
                 "calls": judge_calls,
                 "judged": len(judged_ids),
                 "errors": sum(1 for s in scored if s.judge_error),
@@ -324,7 +336,8 @@ class EvalRunner:
         cfg = self.config.agent
         if model_override:
             # A second model is run without fallbacks, so another model cannot silently answer in its place.
-            cfg = cfg.model_copy(update={"model": LlmConfig(provider=cfg.model.provider, model=model_override)})
+            llm = cfg.model.model_copy(update={"model": model_override, "fallback_models": []})
+            cfg = cfg.model_copy(update={"model": llm})
         classifier = InjectionClassifier(self.config.classifier_model, threads=self.settings.classifier_threads)
         firewall = Firewall(
             PolicySet.from_dir(self.settings.policies_dir, "default"), classifier=classifier, seed=DEMO_SEED
@@ -422,6 +435,29 @@ def summarize_agent(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
             }
         )
     return out
+
+
+def rescore_agent(report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Re-apply the current attack scorer to a saved agent report, in place, without any model call.
+
+    Uses the full answer from the run's "answer" step (the `answer` field is truncated to 1,200 characters)
+    and the executed tool calls. Returns the runs whose verdict changed.
+    """
+    scenarios = {s.id: s for s in load_scenarios()}
+    changed: list[dict[str, Any]] = []
+    for run in report["runs"]:
+        item = scenarios.get(run["scenario"])
+        if item is None or not item.attack:
+            continue
+        answers = [step["detail"] for step in run.get("steps", []) if step.get("kind") == "answer"]
+        answer = answers[-1] if answers else run.get("answer") or ""
+        evidence = attack_evidence(item.attack, answer, run.get("executed", []))
+        if (evidence is not None) != bool(run["attack_success"]):
+            changed.append({"scenario": run["scenario"], "protected": run["protected"], "was": run["attack_success"]})
+        run["attack_success"] = evidence is not None
+        run["attack_evidence"] = evidence
+    report["summary"] = summarize_agent(report["runs"])
+    return changed
 
 
 def summarize_ledger(path: Path) -> dict[str, object]:
