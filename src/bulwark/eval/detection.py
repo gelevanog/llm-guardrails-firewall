@@ -113,7 +113,12 @@ def score_classifier(
 
 
 async def score_judge(
-    scored: list[Scored], judge: LlmJudge, model: str, band: tuple[float, float], every: dict[str, int]
+    scored: list[Scored],
+    judge: LlmJudge,
+    model: str,
+    band: tuple[float, float],
+    every: dict[str, int],
+    limit: int | None = None,
 ) -> int:
     """Ask the judge about subset samples whose combined score is in the band. Returns the number of calls."""
     calls = 0
@@ -122,6 +127,8 @@ async def score_judge(
         combined = default(item)[0]
         if not band[0] <= combined < band[1]:
             continue
+        if limit is not None and calls >= limit:
+            break
         calls += 1
         started = time.perf_counter()
         try:

@@ -8,7 +8,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from bulwark.config import ProviderKind
-from bulwark.providers.base import ensure_free_models
+from bulwark.providers.base import FreeModelGuardError, ensure_free_models
 
 
 class _Strict(BaseModel):
@@ -19,6 +19,10 @@ class LlmConfig(_Strict):
     provider: ProviderKind = "openrouter"
     model: str
     fallback_models: list[str] = Field(default_factory=list)
+    base_url: str | None = None
+    """OpenAI-compatible endpoint for `provider: openai` (default: OPENAI_BASE_URL). Paid models only."""
+    portable: bool = False
+    """Judge requests without `temperature` and numeric schema bounds (some OpenAI-compatible gateways reject them)."""
 
 
 class DeepsetConfig(_Strict):
@@ -55,6 +59,8 @@ class DetectionConfig(_Strict):
     judge_band: tuple[float, float] = (0.25, 0.85)
     judge_every: dict[str, int] = Field(default_factory=dict)
     """Judge subset per dataset: every n-th sample (free-tier budget)."""
+    judge_limit: int | None = None
+    """Stop after this many judge calls (a smoke run on a tiny token budget). None = no limit."""
 
 
 class AgentConfig(_Strict):
@@ -82,9 +88,22 @@ class EvalConfig(_Strict):
     def _free_only(self) -> EvalConfig:
         if self.require_free_models:
             for llm in (self.judge, self.agent.model):
+                if llm.provider in {"openai", "anthropic"} or llm.base_url:
+                    raise FreeModelGuardError(
+                        f"free-only guard: provider {llm.provider!r} (model {llm.model!r}) is paid; set "
+                        "`require_free_models: false` in the config and BULWARK_ALLOW_PAID_MODELS=1 to opt in"
+                    )
                 if llm.provider == "openrouter":
                     ensure_free_models([llm.model, *llm.fallback_models])
         return self
+
+    def check_paid_opt_in(self, allow_paid_models: bool) -> None:
+        """A config file alone cannot turn spending on: `require_free_models: false` also needs the env flag."""
+        if not self.require_free_models and not allow_paid_models:
+            raise FreeModelGuardError(
+                "this evaluation config allows paid models (require_free_models: false); "
+                "set BULWARK_ALLOW_PAID_MODELS=1 to run it"
+            )
 
 
 def load_eval_config(path: Path) -> EvalConfig:

@@ -76,6 +76,7 @@ def _now() -> str:
 
 class EvalRunner:
     def __init__(self, config: EvalConfig, settings: Settings) -> None:
+        config.check_paid_opt_in(settings.allow_paid_models)
         self.config = config
         self.settings = settings.model_copy(
             update={"require_free_models": config.require_free_models, "llm_ledger": config.output_dir / "calls.jsonl"}
@@ -92,7 +93,13 @@ class EvalRunner:
     def llm(self, llm: LlmConfig, tag: str) -> ResilientProvider:
         if self._ledger is None:
             self._ledger = CallLedger(self.out / "calls.jsonl", self.config.max_calls)
-        inner = build_provider(self.settings, kind=llm.provider, model=llm.model, fallback_models=llm.fallback_models)
+        inner = build_provider(
+            self.settings,
+            kind=llm.provider,
+            model=llm.model,
+            fallback_models=llm.fallback_models,
+            base_url=llm.base_url,
+        )
         return ResilientProvider(
             inner,
             ledger=self._ledger,
@@ -149,8 +156,11 @@ class EvalRunner:
                 model=self.config.judge.model,
                 openrouter=self.config.judge.provider == "openrouter",
                 boundary_key=b"bulwark-eval",
+                portable=self.config.judge.portable,
             )
-            judge_calls = await score_judge(scored, llm_judge, model, cfg.judge_band, cfg.judge_every)
+            judge_calls = await score_judge(
+                scored, llm_judge, model, cfg.judge_band, cfg.judge_every, limit=cfg.judge_limit
+            )
         combine = combiners(model, cfg.judge_band)
         groups: dict[str, list[Scored]] = {}
         for item in scored:
@@ -236,6 +246,7 @@ class EvalRunner:
                 "model": self.config.judge.model,
                 "band": list(cfg.judge_band),
                 "every": cfg.judge_every,
+                "limit": cfg.judge_limit,
                 "calls": judge_calls,
                 "judged": len(judged_ids),
                 "errors": sum(1 for s in scored if s.judge_error),
@@ -324,7 +335,8 @@ class EvalRunner:
         cfg = self.config.agent
         if model_override:
             # A second model is run without fallbacks, so another model cannot silently answer in its place.
-            cfg = cfg.model_copy(update={"model": LlmConfig(provider=cfg.model.provider, model=model_override)})
+            llm = cfg.model.model_copy(update={"model": model_override, "fallback_models": []})
+            cfg = cfg.model_copy(update={"model": llm})
         classifier = InjectionClassifier(self.config.classifier_model, threads=self.settings.classifier_threads)
         firewall = Firewall(
             PolicySet.from_dir(self.settings.policies_dir, "default"), classifier=classifier, seed=DEMO_SEED

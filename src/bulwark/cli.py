@@ -6,7 +6,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import httpx
 import typer
@@ -15,6 +15,9 @@ from rich.table import Table
 
 from bulwark.config import DEFAULT_FREE_FALLBACKS, DEFAULT_FREE_MODEL, Settings
 from bulwark.logging_config import configure_logging
+
+if TYPE_CHECKING:
+    from bulwark.eval.runner import EvalRunner
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -29,6 +32,7 @@ console = Console()
 err = Console(stderr=True)
 
 ConfigOption = Annotated[Path, typer.Option("--config", "-c", help="Evaluation config YAML.")]
+OutputDirOption = Annotated[Path | None, typer.Option(help="Write results here instead of the config's output_dir.")]
 
 
 def _settings(**overrides: Any) -> Settings:
@@ -221,12 +225,14 @@ def eval_detection(
         bool, typer.Option("--judge/--no-judge", help="Also run the LLM-judge layer (real calls).")
     ] = False,
     datasets: Annotated[str | None, typer.Option(help="Comma-separated dataset names (default: all).")] = None,
+    judge_model: Annotated[str | None, typer.Option(help="Another judge model id than the config's.")] = None,
+    judge_limit: Annotated[int | None, typer.Option(help="Stop after this many judge calls (smoke run).")] = None,
+    output_dir: OutputDirOption = None,
 ) -> None:
     """Precision / recall / F1 / FPR / latency per layer combination and dataset."""
     from bulwark.eval.report import write_report
-    from bulwark.eval.runner import EvalRunner
 
-    runner = EvalRunner.from_config(config, _settings())
+    runner = _eval_runner(config, output_dir, judge_model=judge_model, judge_limit=judge_limit)
     report = runner.detection(judge=judge, only=datasets.split(",") if datasets else None)
     for row in report["summary"]:
         console.print(
@@ -260,18 +266,38 @@ def eval_agent(
     output: Annotated[
         str | None, typer.Option(help="Result file name in the output dir, e.g. agent_small.json.")
     ] = None,
+    output_dir: OutputDirOption = None,
 ) -> None:
     """Attack success rate and task completion, without vs with Bulwark."""
     from bulwark.eval.report import write_report
-    from bulwark.eval.runner import EvalRunner
 
-    runner = EvalRunner.from_config(config, _settings())
+    runner = _eval_runner(config, output_dir)
     result = runner.agent(real=real, only=scenarios.split(",") if scenarios else None, model=model, output=output)
     for mode in result["summary"]:
         console.print(mode)
     if real:
         runner.calls_summary()
     console.print(f"report: {write_report(runner.out)}")
+
+
+def _eval_runner(
+    config: Path, output_dir: Path | None, *, judge_model: str | None = None, judge_limit: int | None = None
+) -> EvalRunner:
+    from bulwark.eval.config import load_eval_config
+    from bulwark.eval.runner import EvalRunner
+
+    cfg = load_eval_config(config)
+    if output_dir is not None:
+        cfg = cfg.model_copy(update={"output_dir": output_dir})
+    if judge_model:
+        # A judge override runs without fallbacks, so another model cannot silently answer in its place.
+        cfg = cfg.model_copy(
+            update={"judge": cfg.judge.model_copy(update={"model": judge_model, "fallback_models": []})}
+        )
+    if judge_limit is not None:
+        cfg = cfg.model_copy(update={"detection": cfg.detection.model_copy(update={"judge_limit": judge_limit})})
+    # Re-validate: the free-only guard also applies to the overridden models.
+    return EvalRunner(type(cfg).model_validate(cfg.model_dump()), _settings())
 
 
 @eval_app.command("report")
