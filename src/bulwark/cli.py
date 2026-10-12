@@ -1,4 +1,4 @@
-"""Command line: `bulwark scan | serve | hook | agent-demo | eval | models | calls | policies | ...`."""
+"""Command line: `bulwark scan | serve | hook | mcp | agent-demo | eval | models | calls | policies | ...`."""
 
 from __future__ import annotations
 
@@ -189,6 +189,27 @@ def hook(
     from bulwark.claude_code.hooks import main
 
     raise typer.Exit(main([event, *ctx.args]))
+
+
+@app.command("mcp")
+def mcp_command(
+    http: Annotated[bool, typer.Option("--http", help="Streamable HTTP instead of stdio.")] = False,
+    host: Annotated[str, typer.Option(help="HTTP bind address (loopback only unless --allow-remote).")] = "127.0.0.1",
+    port: Annotated[int, typer.Option(help="HTTP port; the endpoint is http://HOST:PORT/mcp.")] = 8766,
+    classifier: Annotated[
+        bool, typer.Option("--classifier/--no-classifier", help="Add the classifier layer (needs the extra).")
+    ] = False,
+    allow_remote: Annotated[
+        bool, typer.Option("--allow-remote", help="Allow a non-loopback --host (the HTTP transport has no auth).")
+    ] = False,
+) -> None:
+    """MCP server with a `scan_text` tool, for Claude Desktop (Claude Code: use the hooks). No LLM calls."""
+    from bulwark.claude_code.mcp_server import run_server
+
+    if http and host not in ("127.0.0.1", "localhost", "::1") and not allow_remote:
+        err.print(f"[red]Refusing to bind {host}: the MCP HTTP transport has no authentication. Use --allow-remote.[/]")
+        raise typer.Exit(1)
+    run_server(http=http, host=host, port=port, classifier=classifier)
 
 
 @app.command()

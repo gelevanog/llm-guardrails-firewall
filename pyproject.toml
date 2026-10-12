@@ -12,6 +12,7 @@ dependencies = [
     "httpx",
     "jinja2",
     "jsonschema",
+    "mcp==2.3.0",
     "pydantic",
     "pydantic-settings",
     "python-multipart",
