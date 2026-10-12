@@ -1,4 +1,4 @@
-"""Command line: `bulwark scan | serve | agent-demo | eval | models | calls | policies | download-model`."""
+"""Command line: `bulwark scan | serve | hook | agent-demo | eval | models | calls | policies | ...`."""
 
 from __future__ import annotations
 
@@ -173,6 +173,22 @@ def agent_demo(
 
     asyncio.run(run_all())
     console.print(table)
+
+
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def hook(
+    ctx: typer.Context,
+    event: Annotated[
+        str,
+        typer.Argument(
+            help="post-tool-use | pre-tool-use | user-prompt-submit | session-end, or status | reset [SESSION | --all]"
+        ),
+    ],
+) -> None:
+    """Claude Code hook: reads the hook JSON on stdin, answers on stdout (`bulwark-hook` starts faster)."""
+    from bulwark.claude_code.hooks import main
+
+    raise typer.Exit(main([event, *ctx.args]))
 
 
 @app.command()

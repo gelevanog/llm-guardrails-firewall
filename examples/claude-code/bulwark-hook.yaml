@@ -1,0 +1,30 @@
+# Bulwark hook configuration (optional). Use it with `bulwark-hook <event> --config path/to/bulwark-hook.yaml`
+# or BULWARK_HOOK_CONFIG=path. Every field is optional; the values below are the built-in defaults.
+# Decisions: allow (no opinion: Claude Code's own permission rules apply), ask (prompt the user), deny.
+
+# Tools whose results are untrusted content (regex over the tool name).
+scan_tools: '^(?:WebFetch|WebSearch|Read|Bash|Grep|mcp__.*)$'
+threshold: 0.5            # injection score at or above which a tool result is flagged
+max_chars: 100000         # longer results: the first 75% and the last 25% of this budget are scanned
+
+# Risky actions. "network": Bash commands matching network_commands; "fetch": fetch_tools; "send": send_tools.
+# network_commands: [...]   # regexes; the defaults cover curl, wget, ssh, scp, rsync, nc, git push/clone, gh api, ...
+# MCP tools are matched on the verb in the tool name (the part after the server), e.g. send_email, create_issue.
+fetch_tools: '^(?:WebFetch|WebSearch)$|^mcp__.+__(?:\w*?[_-])?(?:fetch|navigate|browse|open_url|http|request|download|scrape|crawl)(?:[_-]|s?$)'
+send_tools: '^mcp__.+__(?:\w*?[_-])?(?:send|post|reply|forward|create|write|update|delete|remove|upload|publish|share|comment|invite|transfer|pay|execute|push|merge)(?:[_-]|s?$)'
+allowed_hosts: [localhost, 127.0.0.1, '::1', 0.0.0.0]   # add your own domains: never treated as untrusted
+
+# Untrusted content entered the session, no detector fired.
+on_taint: {network: allow, fetch: allow, send: ask}
+# A tool result was flagged as a prompt injection earlier in this session.
+on_suspicious: {network: ask, fetch: ask, send: deny}
+# A URL, host or email address in the arguments appears only in untrusted content, not in the user's messages.
+untrusted_destination: {network: ask, fetch: allow, send: deny}
+# ... and that content was flagged.
+flagged_destination: {network: deny, fetch: deny, send: deny}
+
+# Optional: a running Bulwark gateway adds the classifier (BULWARK_HOOK_SCAN_URL overrides this).
+# scan_url: http://127.0.0.1:8000/v1/scan
+scan_timeout: 2.0         # seconds; on timeout or error the hook scans with local heuristics instead
+fail_closed: false        # BULWARK_HOOK_FAIL_CLOSED=1: internal errors deny instead of failing open
+state_ttl_hours: 72       # state of sessions that never ran SessionEnd is pruned after this long

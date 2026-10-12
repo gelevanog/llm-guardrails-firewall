@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [{ "type": "command", "command": "bulwark-hook user-prompt-submit", "timeout": 10 }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(WebFetch|WebSearch|Read|Bash|Grep|mcp__.*)$",
+        "hooks": [{ "type": "command", "command": "bulwark-hook post-tool-use", "timeout": 15 }]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "^(Bash|WebFetch|WebSearch|mcp__.*)$",
+        "hooks": [{ "type": "command", "command": "bulwark-hook pre-tool-use", "timeout": 10 }]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [{ "type": "command", "command": "bulwark-hook session-end", "timeout": 5 }]
+      }
+    ]
+  }
+}
