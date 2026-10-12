@@ -157,6 +157,7 @@ class EvalRunner:
                 openrouter=self.config.judge.provider == "openrouter",
                 boundary_key=b"bulwark-eval",
                 portable=self.config.judge.portable,
+                max_tokens=self.config.judge.max_tokens or 1500,
             )
             judge_calls = await score_judge(
                 scored, llm_judge, model, cfg.judge_band, cfg.judge_every, limit=cfg.judge_limit

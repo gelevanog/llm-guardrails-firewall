@@ -227,12 +227,15 @@ def eval_detection(
     datasets: Annotated[str | None, typer.Option(help="Comma-separated dataset names (default: all).")] = None,
     judge_model: Annotated[str | None, typer.Option(help="Another judge model id than the config's.")] = None,
     judge_limit: Annotated[int | None, typer.Option(help="Stop after this many judge calls (smoke run).")] = None,
+    judge_max_tokens: Annotated[int | None, typer.Option(help="Judge answer budget (default 1500).")] = None,
     output_dir: OutputDirOption = None,
 ) -> None:
     """Precision / recall / F1 / FPR / latency per layer combination and dataset."""
     from bulwark.eval.report import write_report
 
-    runner = _eval_runner(config, output_dir, judge_model=judge_model, judge_limit=judge_limit)
+    runner = _eval_runner(
+        config, output_dir, judge_model=judge_model, judge_limit=judge_limit, judge_max_tokens=judge_max_tokens
+    )
     report = runner.detection(judge=judge, only=datasets.split(",") if datasets else None)
     for row in report["summary"]:
         console.print(
@@ -281,7 +284,12 @@ def eval_agent(
 
 
 def _eval_runner(
-    config: Path, output_dir: Path | None, *, judge_model: str | None = None, judge_limit: int | None = None
+    config: Path,
+    output_dir: Path | None,
+    *,
+    judge_model: str | None = None,
+    judge_limit: int | None = None,
+    judge_max_tokens: int | None = None,
 ) -> EvalRunner:
     from bulwark.eval.config import load_eval_config
     from bulwark.eval.runner import EvalRunner
@@ -294,6 +302,8 @@ def _eval_runner(
         cfg = cfg.model_copy(
             update={"judge": cfg.judge.model_copy(update={"model": judge_model, "fallback_models": []})}
         )
+    if judge_max_tokens is not None:
+        cfg = cfg.model_copy(update={"judge": cfg.judge.model_copy(update={"max_tokens": judge_max_tokens})})
     if judge_limit is not None:
         cfg = cfg.model_copy(update={"detection": cfg.detection.model_copy(update={"judge_limit": judge_limit})})
     # Re-validate: the free-only guard also applies to the overridden models.

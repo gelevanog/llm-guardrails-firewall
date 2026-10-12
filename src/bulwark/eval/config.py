@@ -21,6 +21,8 @@ class LlmConfig(_Strict):
     fallback_models: list[str] = Field(default_factory=list)
     base_url: str | None = None
     """OpenAI-compatible endpoint for `provider: openai` (default: OPENAI_BASE_URL). Paid models only."""
+    max_tokens: int | None = None
+    """Judge answer budget (default 1500); lower it for endpoints that reserve max_tokens against a token cap."""
     portable: bool = False
     """Judge requests without `temperature` and numeric schema bounds (some OpenAI-compatible gateways reject them)."""
 

@@ -13,7 +13,7 @@ from bulwark.eval.config import EvalConfig, load_eval_config
 from bulwark.eval.detection import Scored, score_judge
 from bulwark.eval.runner import EvalRunner
 from bulwark.guards.judge import JUDGE_SCHEMA, LlmJudge
-from bulwark.providers.base import FreeModelGuardError
+from bulwark.providers.base import FreeModelGuardError, ProviderError, RetryableError
 from bulwark.providers.factory import build_provider
 from bulwark.providers.fake import FakeProvider
 from bulwark.providers.openai_compat import OpenAICompatibleProvider
@@ -98,6 +98,8 @@ async def test_base_url_override_and_portable_judge() -> None:
     # The default request is unchanged (same cache keys as the free baseline).
     default = LlmJudge(provider, model="m", boundary_key=b"k").request("t", "input")
     assert default["temperature"] == 0 and default["response_format"]["json_schema"]["schema"] is JUDGE_SCHEMA
+    assert default["max_tokens"] == 1500
+    assert LlmJudge(provider, model="m", max_tokens=96).request("t", "input")["max_tokens"] == 96
 
 
 async def test_judge_limit_caps_calls() -> None:
@@ -108,3 +110,13 @@ async def test_judge_limit_caps_calls() -> None:
     judge = LlmJudge(FakeProvider(), boundary_key=b"k")
     assert await score_judge(items, judge, "m", (0.25, 0.85), {"d": 1}, limit=2) == 2
     assert [item.judge is not None for item in items] == [True, True, False]
+
+
+@pytest.mark.parametrize("error", [{"type": "budget_exhausted"}, {"code": "insufficient_quota"}])
+async def test_exhausted_quota_is_not_retried(error: dict[str, str]) -> None:
+    p = build_provider(settings(openai_api_key="proj-test"), kind="openai", model="claude-haiku-5-5", base_url=PROXY)
+    assert isinstance(p, OpenAICompatibleProvider)
+    p._transport = httpx.MockTransport(lambda r: httpx.Response(429, json={"error": {"message": "spent", **error}}))
+    with pytest.raises(ProviderError, match="quota exhausted") as caught:
+        await p.complete({"messages": []})
+    assert not isinstance(caught.value, RetryableError) and caught.value.status_code == 429

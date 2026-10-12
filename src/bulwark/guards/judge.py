@@ -98,6 +98,7 @@ class LlmJudge:
         max_chars: int = 6000,
         boundary_key: bytes | None = None,
         portable: bool = False,
+        max_tokens: int = 1500,
     ) -> None:
         self.provider = provider
         self.model = model
@@ -105,6 +106,7 @@ class LlmJudge:
         # Portable requests leave out `temperature` and the schema's numeric bounds, which some OpenAI-compatible
         # gateways reject (confidence is clamped to [0, 1] when parsed anyway).
         self.portable = portable
+        self.max_tokens = max_tokens
         self.max_chars = max_chars
         # The boundary is a keyed hash of the text: unpredictable for an attacker who does not know the key,
         # but stable for the same text, so evaluation re-runs hit the response cache.
@@ -124,7 +126,7 @@ class LlmJudge:
         body: JsonDict = {
             "model": self.model,
             "messages": [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": user}],
-            "max_tokens": 1500,
+            "max_tokens": self.max_tokens,
             "temperature": 0,
             "response_format": {
                 "type": "json_schema",
